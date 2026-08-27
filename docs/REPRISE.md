@@ -3,17 +3,16 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — Vague 0 terminée et vérifiée sur Supabase.**
+**Dernière mise à jour : 27 août 2026 — Vague 1 (authentification) codée et testée.**
 
 ---
 
 ## État en une phrase
 
-Vague 0 terminée. Le schéma est **appliqué sur l'instance Supabase du projet**
-(PostgreSQL 17.6, `eu-central-1`), la connexion est chiffrée **et le certificat
-authentifié**, `/api/health` répond 200 avec ~75 ms de latence base. Rien ne
-bloque techniquement l'ouverture de la Vague 1 : il ne reste que des décisions
-métier.
+Vague 0 vérifiée sur Supabase (PostgreSQL 17.6, `eu-central-1`, TLS authentifié).
+Vague 1 codée, **87 tests au vert**, mais **pas encore rejouée contre la vraie
+base** : le mot de passe Postgres a été réinitialisé, `DATABASE_URL` doit être
+remis à jour dans `.env`.
 
 ---
 
@@ -87,12 +86,86 @@ Il manque **3 à 5 cas issus du métier réel** — voir le formulaire en fin de
 
 ---
 
+## Vague 1 — authentification *(code terminé, vérification base en attente)*
+
+Contrat : `docs/API-CONTRACT.md` §2. **Inscription ouverte**, décidée le 27 août 2026.
+
+| Livrable | Où |
+|---|---|
+| Hachage des mots de passe (scrypt, `node:crypto`) | `server/src/modules/auth/motDePasse.ts` |
+| Jetons de session (256 bits, SHA-256 en base) | `server/src/modules/auth/jetons.ts` |
+| Cookie `HttpOnly` / `SameSite=Lax` | `server/src/http/cookies.ts` |
+| Limitation de débit (fenêtre glissante) | `server/src/http/limiteur.ts` |
+| Accès aux données | `server/src/modules/auth/depot.ts` |
+| Logique métier | `server/src/modules/auth/service.ts` |
+| Routes | `server/src/modules/auth/routes.ts` |
+| `exigerSession` / `exigerRole` | `server/src/http/session.ts` |
+| Écrans connexion / inscription / accueil | `web/src/pages/**`, `web/src/lib/**` |
+
+Routes livrées : `POST /api/inscription`, `POST /api/connexion`,
+`POST /api/deconnexion`, `GET /api/moi`.
+
+**Aucune migration n'a été nécessaire** : `utilisateurs`, `sessions`, `compteurs`
+et `categories_depense` existaient déjà depuis la Vague 0.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **87 tests**, 0 échec (38 en Vague 0, 49 ajoutés) |
+| `npm run build` | shared + server + les 2 bundles |
+| Binaire construit, base injoignable | `/api/moi` → 401 sans toucher la base ; cookie forgé → 401 ; `/api/deconnexion` → 204 ; corps invalide → 400 **avant** tout accès base |
+
+### Reste à vérifier contre la vraie base
+
+Dès que `DATABASE_URL` est à jour :
+
+- inscription réelle → entreprise + propriétaire + compteur + catégories copiées
+  selon le secteur, **le tout dans une seule transaction** ;
+- connexion, `GET /api/moi`, déconnexion sur un vrai cookie ;
+- que `sessions` ne contienne bien que des SHA-256 de 32 octets.
+
+### Décisions de sécurité, et pourquoi
+
+- **scrypt plutôt qu'argon2 / bcrypt** : pas de dépendance native, donc pas de
+  compilation qui casse sous Windows. Paramètres OWASP (N=2¹⁵, r=8, p=1),
+  stockés **avec** l'empreinte pour pouvoir les durcir sans invalider l'existant.
+- **Réponse identique** pour « e-mail inconnu » et « mot de passe faux », **et
+  même temps de réponse** : on hache un mot de passe factice quand le compte
+  n'existe pas. Sans cela, l'écart de durée (~100 ms) permet d'énumérer les
+  clients.
+- **Le statut du compte n'est lu qu'après le mot de passe** : annoncer
+  « suspendu » avant rétablirait l'oracle qu'on vient de fermer.
+- **Deux compteurs de limitation** : par IP (balayage depuis une machine) et par
+  e-mail (un compte visé depuis plusieurs machines). L'un sans l'autre laisse
+  une porte ouverte.
+- **La déconnexion révoque en base**, elle ne se contente pas d'effacer le
+  cookie — sinon le jeton reste valide dans la nature.
+- **Suspension immédiate** : un compte suspendu perd l'accès à la requête
+  suivante, sans attendre l'expiration du cookie.
+
+### Limite assumée
+
+La limitation de débit vit **en mémoire du processus**. Avec deux instances,
+chacune accorde le quota complet. Acceptable en MVP mono-instance ; à remplacer
+par un magasin partagé au premier passage à l'échelle.
+
+### Hors périmètre, à ne pas oublier
+
+**Mot de passe oublié** : demande un service d'e-mail, aucun n'est choisi. En
+attendant, la réinitialisation est manuelle depuis `/admin`. **À traiter avant
+toute mise en ligne réelle** — l'écran de connexion le dit explicitement à
+l'utilisateur plutôt que d'afficher un lien mort.
+
+---
+
 ## Prochaine vague
 
-**Vague 1 — authentification.** Contrat proposé dans `docs/API-CONTRACT.md` §2,
-**à relire avant de lancer le moindre agent**. Deux points y attendent une
-décision : inscription ouverte ou sur invitation, et absence de « mot de passe
-oublié » tant qu'aucun service d'e-mail n'est choisi.
+**Vague 2 — saisie des ventes et des dépenses.** Le contrat s'écrit dans
+`docs/API-CONTRACT.md` §3 avant la première ligne de code. Rappel du §9 de
+`docs/MOTEUR-ANALYTICS.md` : montants **TTC**, comptabilité de **trésorerie**,
+pas d'impayés — ces trois choix conditionnent la forme des écrans de saisie.
 
 ---
 

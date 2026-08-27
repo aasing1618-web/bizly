@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@bizly/shared": "*",
+    "cookie": "^1.1.1",
     "dotenv": "^16.4.7",
     "express": "^5.0.1",
     "pg": "^8.13.1",

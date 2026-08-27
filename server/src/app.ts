@@ -6,11 +6,14 @@ import {
   identifiantRequete,
   journaliserRequetes,
 } from "./http/middlewares.js";
+import { creerRouteurAuth } from "./modules/auth/routes.js";
+import type { ServiceAuth } from "./modules/auth/service.js";
 import { creerRouteurSante } from "./routes/health.js";
 import { monterStatiques } from "./statiques.js";
 
 export type DependancesApp = {
   sonderBase: SondeBase;
+  serviceAuth: ServiceAuth;
   version: string;
   demarreLe: number;
   production: boolean;
@@ -60,6 +63,7 @@ export function creerApp(deps: DependancesApp): Express {
       demarreLe: deps.demarreLe,
     }),
   );
+  api.use(creerRouteurAuth({ service: deps.serviceAuth, production: deps.production }));
   api.use(routeApiIntrouvable);
 
   app.use("/api", api);

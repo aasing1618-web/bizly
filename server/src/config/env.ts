@@ -28,9 +28,16 @@ const schema = z.object({
     .min(1, "obligatoire — chaîne du pooler Supabase (port 6543), voir .env.example"),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   DATABASE_SSL: z.enum(["require", "no-verify", "disable"]).default("require"),
-  // Certificat racine PUBLIC de Supabase, sans quoi une verification stricte
-  // echoue : la chaine du pooler est signee par une autorite privee.
-  DATABASE_CA_CERT: z.string().trim().min(1).optional(),
+  // Certificat racine PUBLIC de Supabase, sans quoi une vérification stricte
+  // échoue : la chaîne du pooler est signée par une autorité privée.
+  //
+  // `preprocess` traite une valeur vide comme absente : dans un fichier `.env`,
+  // laisser « CLE= » est la façon normale de ne pas renseigner une option, et
+  // cela ne doit pas empêcher le serveur de démarrer.
+  DATABASE_CA_CERT: z.preprocess(
+    (valeur) => (typeof valeur === "string" && valeur.trim() === "" ? undefined : valeur),
+    z.string().trim().min(1).optional(),
+  ),
 });
 
 export type Env = z.infer<typeof schema>;

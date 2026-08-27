@@ -5,6 +5,8 @@ import { creerApp } from "./app.js";
 import { RACINE_DEPOT, enProduction, env } from "./config/env.js";
 import { fermerPool, pool } from "./db/pool.js";
 import { creerSondeBase } from "./db/sonde.js";
+import { creerDepotPg } from "./modules/auth/depot.js";
+import { creerServiceAuth } from "./modules/auth/service.js";
 import { definirNiveauJournal, detaillerErreur, journal } from "./http/journal.js";
 
 /**
@@ -21,6 +23,7 @@ const version = lireVersion();
 
 const app = creerApp({
   sonderBase: creerSondeBase(pool),
+  serviceAuth: creerServiceAuth({ depot: creerDepotPg(pool) }),
   version,
   demarreLe,
   production: enProduction,

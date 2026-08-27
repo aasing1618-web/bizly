@@ -3,8 +3,9 @@
 > **Ce document fait foi.** Aucune formule ne s'écrit dans le code avant d'être ici.
 > Si le code et ce document divergent, c'est le code qui a tort.
 >
-> Les blocs `[À VALIDER]` sont des ambiguïtés que je n'ai **pas** tranchées seul :
-> elles attendent ta décision métier. Elles sont récapitulées au §9.
+> Les arbitrages métier ont été délégués et sont **tranchés au §9**, avec leur
+> raison. Toute nouvelle ambiguïté se signale avant d'écrire la moindre ligne
+> de code, elle ne se tranche pas en silence.
 
 Version 1 — Vague 0. Le moteur lui-même est implémenté en Vague 3.
 
@@ -175,21 +176,21 @@ Chaque KPI peut être comparé à la période précédente.
 Mois calendaire et pas 30 jours : février contre janvier serait faussé de 3 jours,
 soit ~10 % de CA d'écart artificiel.
 
-### 3.5 `[À VALIDER]` — comparer un mois en cours à un mois complet
+### 3.5 Comparer un mois en cours à un mois complet — **tranché : option A**
 
 Le 8 du mois, comparer « ce mois » (8 jours de ventes) à « le mois dernier » (31 jours)
 affiche mécaniquement −74 %. C'est faux et anxiogène.
 
-**Ma proposition (implémentée par défaut sauf contre-ordre)** : quand la période
+**Décision retenue** : quand la période
 courante est **en cours**, la comparaison se fait **à date** — on ne prend du mois
 précédent que le même nombre de jours écoulés (du 1er au 8 inclus). La réponse porte
 alors un drapeau `comparaison_a_date: true` que l'interface affiche explicitement
 (« comparé au 1–8 du mois dernier »).
 
-Trois options possibles, à toi de trancher :
-- **A.** comparaison à date, avec mention explicite *(mon choix par défaut)* ;
-- **B.** comparaison au mois complet, avec avertissement « mois en cours » ;
-- **C.** pas de comparaison tant que la période n'est pas terminée.
+Options écartées : comparer au mois complet avec un avertissement — un
+avertissement ne rattrape jamais un chiffre choquant, l'œil voit le −74 % avant
+de lire la note ; ou ne rien comparer tant que la période court — cela priverait
+le client de son indicateur le plus consulté pendant tout le mois.
 
 ---
 
@@ -212,10 +213,9 @@ lundi saisie mercredi appartient à lundi.
 Mêmes règles : `statut = 'VALIDEE'`, `supprime_le IS NULL`, `effectuee_le` dans la
 période.
 
-### 4.3 `[À VALIDER]` — TVA / HT / TTC
+### 4.3 TVA / HT / TTC — **tranché : tout TTC, pas de TVA** (voir §9.1)
 
-**Hypothèse retenue par défaut, à confirmer :** tous les montants sont **TTC**, le MVP
-ne gère **pas** la TVA. `chiffre_affaires` est donc un CA TTC, et `benefice` est un
+**Décision :** tous les montants sont **TTC**, le MVP ne gère **pas** la TVA. `chiffre_affaires` est donc un CA TTC, et `benefice` est un
 solde encaissements − décaissements, pas un résultat comptable.
 
 Si les clients cibles sont assujettis, il faudra :
@@ -226,12 +226,12 @@ Si les clients cibles sont assujettis, il faudra :
 Ce n'est pas un ajout cosmétique : ça change le schéma, les formules et l'UI de saisie.
 **Décision nécessaire avant la Vague 2** (CRUD ventes/dépenses).
 
-### 4.4 `[À VALIDER]` — encaissé ou facturé ?
+### 4.4 Encaissé ou facturé ? — **tranché : trésorerie** (voir §9.2)
 
 Pour un prestataire de services, une vente facturée en mars et payée en mai pose la
 question : le CA de mars, ou de mai ?
 
-**Hypothèse retenue par défaut :** le MVP est en **comptabilité de trésorerie** —
+**Décision :** le MVP est en **comptabilité de trésorerie** —
 `effectuee_le` est la date de l'encaissement, et il n'existe pas d'état « impayé ».
 Si tu veux suivre les impayés (utile pour les prestataires), il faut un statut de
 paiement et une date d'échéance : ça relève de la Vague 2.
@@ -493,16 +493,52 @@ toi-même : c'est là que la spec est ambiguë.
 
 ---
 
-## §9. Récapitulatif des décisions en attente
+## §9. Décisions — arrêtées le 27 août 2026
 
-| # | Sujet | Défaut appliqué | Impact si tu changes |
+Le propriétaire du projet a délégué ces arbitrages. Ils sont **tranchés**, avec
+leur raison. Ils restent révisables, mais plus par défaut : les changer demande
+une migration et une reprise de l'UI.
+
+| # | Sujet | Décision | Raison |
 |---|---|---|---|
-| 1 | Comparaison période en cours (§3.5) | Comparaison **à date** | Faible — moteur seul |
-| 2 | **TVA / HT / TTC** (§4.3) | Tout **TTC**, pas de TVA | **Fort** — schéma + saisie + KPI. À trancher **avant la Vague 2** |
-| 3 | Encaissé vs facturé, impayés (§4.4) | Trésorerie, pas d'impayés | **Fort** — schéma + Vague 2 |
-| 4 | Devise par défaut | `EUR` | Faible |
-| 5 | Fuseau par défaut | `Europe/Paris` | Faible |
-| 6 | Contenu des questions intelligentes | **rien** — mécanique seule | **Fort** — c'est le cœur de valeur, à écrire ensemble |
-| 7 | Liste des secteurs d'activité | 8 secteurs proposés en base | Moyen — conditionne les règles |
+| 1 | Comparaison période en cours (§3.5) | **Option A — comparaison à date**, avec `comparaison_a_date: true` affiché | Comparer 8 jours à 31 affiche −74 % le 8 du mois. C'est faux, et un indicateur qui ment une fois n'est plus jamais cru. |
+| 2 | TVA / HT / TTC (§4.3) | **Tout TTC, pas de TVA en MVP** | Voir §9.1 |
+| 3 | Encaissé vs facturé (§4.4) | **Comptabilité de trésorerie** — `effectuee_le` = date d'encaissement | Voir §9.2 |
+| 4 | Devise par défaut | `EUR`, modifiable par entreprise parmi 10 devises | Le référentiel porte déjà XOF/XAF/MAD/DZD/TND : ouvrir hors zone euro ne demandera aucune migration. |
+| 5 | Fuseau par défaut | `Europe/Paris`, modifiable | Idem, et validé par la base. |
+| 6 | Contenu des questions intelligentes | **Catalogue rédigé en Vague 4**, soumis à validation avant implémentation | C'est le cœur de valeur : il mérite d'être écrit avec les vraies données de test sous les yeux, pas dans le vide. |
+| 7 | Secteurs d'activité | **Les 9 en base** | Assez large pour couvrir la cible, assez court pour que chaque secteur ait de vraies règles dédiées. |
 
-Les points **2, 3 et 6** sont ceux qui coûtent cher si on les découvre tard.
+### §9.1 Pourquoi pas de TVA dans le MVP
+
+CLAUDE.md §1 met explicitement la **conformité fiscale hors périmètre**. Gérer
+la TVA correctement, ce n'est pas ajouter un champ : c'est un taux par ligne, un
+CA HT **et** TTC, une TVA collectée et déductible, et les régimes (franchise en
+base, réel simplifié, réel normal). Mal faite, elle produit des chiffres faux
+que le client prendrait pour argent comptant.
+
+Le MVP vise d'abord **l'entreprise non assujettie ou en franchise en base** —
+micro-entrepreneur, petit commerçant — pour qui `CA TTC − dépenses TTC` est un
+solde juste.
+
+Deux conséquences à tenir :
+
+1. L'interface libelle le KPI **« Chiffre d'affaires encaissé (TTC) »**, jamais
+   « CA » tout court. Un assujetti doit voir immédiatement ce qu'il regarde.
+2. Les migrations étant append-only, ajouter plus tard `taux_tva` sur les lignes
+   et un `montant_ht_mineur` est une migration simple. **Rien dans le schéma
+   actuel n'interdit la TVA** — on ne se ferme aucune porte, on ne l'ouvre pas
+   maintenant.
+
+### §9.2 Pourquoi la trésorerie plutôt que la facturation
+
+Un commerçant encaisse au moment de la vente : les deux dates se confondent, et
+la trésorerie est son modèle mental naturel. Pour un prestataire, elles
+diffèrent — mais un « bénéfice » calculé sur des factures non payées est un
+bénéfice qu'on n'a pas en banque, et c'est le pire mensonge que puisse faire un
+outil de gestion.
+
+Le suivi des impayés (statut de paiement, date d'échéance, relances) est une
+**fonctionnalité à part entière**, pas un réglage. Elle a sa valeur commerciale
+propre pour les prestataires de services : c'est un candidat sérieux pour la
+première évolution après le MVP, pas un ajout discret en Vague 2.

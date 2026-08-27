@@ -136,83 +136,158 @@ navigateur reçoit du HTML là où il attend du JavaScript et l'erreur devient i
 
 ---
 
-## §2. Vague 1 — authentification *(proposé, à valider avant ouverture)*
+## §2. Vague 1 — authentification *(contrat arrêté)*
 
-> Rien de cette section n'est implémenté. Elle est ici pour être **relue et corrigée
-> avant** que le premier agent de la Vague 1 démarre.
+Décidé : **inscription ouverte**. N'importe qui crée un compte, l'entreprise est
+`ACTIF` immédiatement. La suspension reste **manuelle depuis `/admin`**, a
+posteriori — conforme au « comptes changés à la main, aucun paiement en ligne »
+de CLAUDE.md §2. Un mur d'invitation avant même d'avoir un utilisateur ne
+protège de rien et empêche de tester le produit.
+
+### Modèle de session
+
+| Point | Valeur | Raison |
+|---|---|---|
+| Transport | cookie `bizly_session` | `HttpOnly` : un XSS ne peut pas lire le jeton, contrairement à `localStorage`. |
+| Attributs | `HttpOnly; SameSite=Lax; Path=/` + `Secure` hors développement | `Lax` laisse passer la navigation entrante tout en bloquant les POST inter-sites. |
+| Jeton | 256 bits aléatoires, encodés base64url | |
+| Stockage | **SHA-256 seul** en base | Une fuite de la table `sessions` ne permet d'usurper aucune session. |
+| Durée | 30 jours, **glissante** | Prolongée à chaque requête authentifiée si plus de 24 h se sont écoulées — pas à chaque appel, pour ne pas écrire en base à chaque requête. |
+| Révocation | `revoquee_le` renseigné | La déconnexion révoque, elle ne supprime pas : on garde la trace. |
 
 ### `POST /api/inscription`
 
-Crée une **entreprise** et son **premier utilisateur** (rôle `PROPRIETAIRE`), en une
-seule transaction.
+Crée l'entreprise **et** son premier utilisateur (`PROPRIETAIRE`) dans **une
+seule transaction**, avec ses catégories de dépense et son compteur de ventes.
 
 ```json
 {
   "entreprise": { "nom": "Boulangerie Martin", "secteur": "commerce_detail" },
-  "utilisateur": { "nom": "Awa Martin", "email": "awa@ex.fr", "mot_de_passe": "…" }
+  "utilisateur": { "nom": "Awa Martin", "email": "awa@exemple.fr", "mot_de_passe": "…" }
 }
 ```
 
-- **201** → `{ "utilisateur": { … }, "entreprise": { … } }`, cookie de session posé.
-- **409 `CONFLIT`** → email déjà utilisé.
-- **400 `VALIDATION`** → mot de passe < 10 caractères, email invalide, secteur inconnu.
+Champs optionnels sur `entreprise` : `devise` (défaut `EUR`), `fuseau` (défaut
+`Europe/Paris`).
 
-`[À VALIDER]` — l'inscription est-elle **ouverte** (n'importe qui crée un compte, statut
-`ACTIF` immédiat) ou **sur invitation** (statut `SUSPENDU` jusqu'à activation manuelle
-depuis `/admin`) ? Le brief dit « comptes changés à la main, aucun paiement en ligne »,
-ce qui plaide pour la seconde. **Défaut proposé : création en `ACTIF`**, suspension
-manuelle a posteriori — moins frustrant pour tester, réversible en une ligne.
+| Code | Cas |
+|---|---|
+| **201** | `{ "utilisateur": {…}, "entreprise": {…} }` + cookie posé |
+| **400** `VALIDATION` | e-mail invalide, mot de passe < 10 caractères, secteur ou devise inconnus, nom vide |
+| **409** `CONFLIT` | e-mail déjà utilisé |
+| **429** `TROP_DE_REQUETES` | 5 inscriptions / heure / IP |
+
+Règles de mot de passe : **10 caractères minimum**, 200 maximum, et refus de la
+liste des mots de passe les plus courants. Pas d'exigence de majuscule ni de
+caractère spécial : ces règles poussent à `Motdepasse1!` et n'apportent rien
+face à une longueur suffisante.
+
+Ce que fait la transaction, dans l'ordre :
+
+1. `entreprises` — statut `ACTIF` ;
+2. `utilisateurs` — rôle `PROPRIETAIRE`, `mot_de_passe_hash` scrypt ;
+3. `compteurs` — ligne `('vente', 0)` ;
+4. `categories_depense` — copie des `modeles_categorie_depense` applicables au
+   secteur (`secteurs = '{}'` ou contenant le secteur choisi) ;
+5. `sessions` — la session, et le cookie part avec la réponse.
+
+Tout échoue ensemble ou rien ne passe : une entreprise sans catégories ni
+compteur serait cassée dès la première dépense.
 
 ### `POST /api/connexion`
 
 ```json
-{ "email": "awa@ex.fr", "mot_de_passe": "…" }
+{ "email": "awa@exemple.fr", "mot_de_passe": "…" }
 ```
 
-- **200** → `{ "utilisateur": { … }, "entreprise": { … } }` + cookie `bizly_session`.
-- **401 `IDENTIFIANTS_INVALIDES`** → email inconnu **ou** mot de passe faux.
-  Message identique dans les deux cas, et **temps de réponse identique** (on hache un
-  mot de passe factice quand l'email est inconnu) : sinon l'API devient un oracle
-  permettant d'énumérer les comptes clients.
-- **403 `COMPTE_SUSPENDU`** → identifiants bons, compte suspendu. Là on **peut** le dire :
-  l'utilisateur a prouvé qui il est.
-- **429 `TROP_DE_REQUETES`** → au-delà de 10 tentatives / 15 min par IP **et** par email.
+| Code | Cas |
+|---|---|
+| **200** | `{ "utilisateur": {…}, "entreprise": {…} }` + cookie |
+| **401** `IDENTIFIANTS_INVALIDES` | e-mail inconnu **ou** mot de passe faux |
+| **403** `COMPTE_SUSPENDU` | identifiants bons, entreprise ou utilisateur suspendu |
+| **429** `TROP_DE_REQUETES` | 10 tentatives / 15 min, par IP **et** par e-mail |
 
-Cookie : `bizly_session=<token>; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000`
-(+ `Secure` hors développement). Durée **30 jours**, glissante : prolongée à chaque
-requête authentifiée si plus de 24 h se sont écoulées.
+Deux exigences non négociables :
+
+1. **Message identique** que l'e-mail soit inconnu ou le mot de passe faux.
+   Distinguer les deux transforme l'API en oracle : on énumère les clients.
+2. **Temps de réponse identique** dans les deux cas. Quand l'e-mail est inconnu,
+   on vérifie quand même un hachage factice. Sans cela, la différence de durée
+   (scrypt coûte ~100 ms) redonne l'oracle qu'on vient de fermer.
+
+`COMPTE_SUSPENDU` est en revanche explicite : l'utilisateur a prouvé qui il est,
+lui cacher la raison ne ferait que générer un ticket de support.
 
 ### `POST /api/deconnexion`
 
-- **204**. Révoque la session en base **et** efface le cookie. Idempotent : sans session
-  valide, renvoie **204** quand même.
+**204** toujours, même sans session valide — l'opération est idempotente.
+Révoque la session en base **et** efface le cookie. Effacer seulement le cookie
+laisserait un jeton valide dans la nature.
 
 ### `GET /api/moi`
 
-- **200** → utilisateur + entreprise + rôle courant. C'est ce qu'appelle le SPA au
-  démarrage pour savoir s'il doit afficher l'app ou l'écran de connexion.
-- **401 `NON_AUTHENTIFIE`** → pas de session. Pas une erreur à logger.
+Ce qu'appelle le SPA au démarrage pour savoir s'il affiche l'application ou
+l'écran de connexion.
 
-### Périmètre de la Vague 1
-
-| Inclus | Exclu (vagues suivantes) |
+| Code | Cas |
 |---|---|
-| Inscription, connexion, déconnexion, `/api/moi` | Mot de passe oublié (nécessite un envoi d'e-mail) |
-| Session en base + cookie HttpOnly | Invitation d'un collègue |
-| Middleware `exigerSession` + `exigerRole` | 2FA |
-| Blocage des comptes `SUSPENDU` | Gestion des rôles fins |
+| **200** | `{ "utilisateur": {…}, "entreprise": {…} }` |
+| **401** `NON_AUTHENTIFIE` | pas de session — cas normal, pas une erreur à journaliser |
 
-`[À VALIDER]` — la réinitialisation de mot de passe suppose un service d'envoi d'e-mail
-(Resend, Postmark, SMTP Supabase…). **Aucun n'est choisi.** Tant qu'il ne l'est pas, un
-mot de passe perdu se réinitialise à la main depuis `/admin`. Acceptable en MVP, pas
-au-delà.
+### Formes renvoyées
 
-### Découpage en deux agents (périmètres disjoints)
+```jsonc
+// utilisateur
+{ "id": "uuid", "nom": "Awa Martin", "email": "awa@exemple.fr", "role": "PROPRIETAIRE" }
 
-| Agent | Écrit dans |
+// entreprise
+{
+  "id": "uuid", "nom": "Boulangerie Martin", "secteur": "commerce_detail",
+  "devise": { "code": "EUR", "decimales": 2 },
+  "fuseau": "Europe/Paris", "statut": "ACTIF"
+}
+```
+
+Le hachage du mot de passe ne sort **jamais**, sous aucune forme. L'entreprise
+porte sa devise **résolue** (code + décimales) : le client n'a pas à connaître la
+table `devises` pour formater un montant.
+
+### Nouveau code d'erreur
+
+| `code` | HTTP | Quand |
+|---|---|---|
+| `IDENTIFIANTS_INVALIDES` | 401 | e-mail ou mot de passe faux, sans distinction |
+
+### Middlewares introduits
+
+- `exigerSession` — résout le cookie, charge utilisateur + entreprise, refuse
+  `401` sans session et `403 COMPTE_SUSPENDU` si l'un des deux est suspendu.
+  Il pose `requete.contexte = { utilisateur, entreprise }` : **toute** requête
+  métier des vagues suivantes lira `entreprise.id` là, jamais dans le corps ou
+  l'URL. C'est ce qui rend l'isolation structurelle plutôt que déclarative.
+- `exigerRole('PROPRIETAIRE')` — à composer après `exigerSession`.
+
+### Limitation de débit
+
+En mémoire du processus, fenêtre glissante. Assumé : une seule instance en MVP.
+Le jour où il y en a deux, cela demandera un magasin partagé — c'est écrit ici
+pour que la découverte ne se fasse pas en production.
+
+### Hors périmètre de la Vague 1
+
+| Exclu | Pourquoi |
 |---|---|
-| **A — domaine auth** | `server/src/modules/auth/**`, `db/migrations/0003_*.sql`, tests associés |
-| **B — écrans** | `web/src/pages/Connexion.tsx`, `web/src/pages/Inscription.tsx`, `web/src/lib/api.ts` |
+| Mot de passe oublié | Demande un service d'e-mail, **aucun n'est choisi**. En attendant, réinitialisation manuelle depuis `/admin`. À traiter avant toute mise en ligne réelle. |
+| Invitation d'un collègue | Le rôle `EMPLOYE` existe en base, aucun écran ne le crée encore. |
+| 2FA | Hors MVP. |
+| Connexion admin `/admin` | Vague 5, tables `admins` / `admin_sessions` déjà en place. |
 
-Les types partagés (`shared/src/**`) sont écrits **avant** le lancement des deux agents,
-par moi seul : c'est le seul fichier qu'ils liraient tous les deux.
+### Découpage du travail
+
+Périmètres disjoints, fichiers partagés écrits en premier et par un seul auteur :
+
+| Lot | Écrit dans |
+|---|---|
+| **Socle partagé** *(d'abord, seul)* | `shared/src/auth.ts` |
+| **A — domaine et routes** | `server/src/modules/auth/**`, `server/src/http/session.ts`, `server/src/http/cookies.ts`, `server/src/http/limiteur.ts` |
+| **B — écrans** | `web/src/pages/**`, `web/src/lib/**`, `web/src/App.tsx` |

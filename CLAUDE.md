@@ -216,8 +216,8 @@ propriétaire du projet.
 | Vague | Contenu | État |
 |---|---|---|
 | 0 | Structure, schéma de base, `/health` | livrée |
-| 1 | Auth (inscription, connexion, session, statut ACTIF/SUSPENDU) | à ouvrir |
-| 2 | CRUD ventes + dépenses | |
+| 1 | Auth (inscription, connexion, session, statut ACTIF/SUSPENDU) | livrée, vérif base en attente |
+| 2 | CRUD ventes + dépenses | à ouvrir |
 | 3 | Moteur KPI + dashboard | |
 | 4 | Moteur de questions intelligentes | |
 | 5 | Admin plateforme | |
