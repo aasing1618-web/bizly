@@ -217,8 +217,8 @@ propriétaire du projet.
 |---|---|---|
 | 0 | Structure, schéma de base, `/health` | livrée |
 | 1 | Auth (inscription, connexion, session, statut ACTIF/SUSPENDU) | livrée et vérifiée |
-| 2 | CRUD ventes + dépenses | à ouvrir |
-| 3 | Moteur KPI + dashboard | |
+| 2 | CRUD ventes + dépenses | livrée et vérifiée |
+| 3 | Moteur KPI + dashboard | à ouvrir |
 | 4 | Moteur de questions intelligentes | |
 | 5 | Admin plateforme | |
 | 6 | Finition UI, déploiement | |

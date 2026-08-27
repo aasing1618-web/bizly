@@ -79,3 +79,56 @@ export function formaterPourcent(
  * à des ventes à zéro euro. Voir docs/MOTEUR-ANALYTICS.md §5.1.
  */
 export const VALEUR_NON_CALCULABLE = "—";
+
+/**
+ * Convertit ce que l'utilisateur a tapé en unité mineure. `null` si illisible.
+ *
+ * Accepte `3 450,50`, `3450.50`, `3450`, avec espaces fines ou insécables — ce
+ * qu'un copier-coller depuis un tableur produit couramment.
+ *
+ * **Aucune multiplication flottante** : on assemble les chiffres en chaîne puis
+ * on convertit une seule fois. `parseFloat("8.29") * 100` donne
+ * `828.9999999999999`, et même corrigé par un arrondi, c'est une opération que
+ * l'on ne veut pas dans le chemin de l'argent (docs/MOTEUR-ANALYTICS.md §1).
+ *
+ * @example analyserMontantSaisi("3 450,50", { code: "EUR", decimales: 2 }) // 345050
+ * @example analyserMontantSaisi("1750000",  { code: "XOF", decimales: 0 }) // 1750000
+ * @example analyserMontantSaisi("10,555",   { code: "EUR", decimales: 2 }) // null
+ */
+export function analyserMontantSaisi(saisie: string, devise: Devise): MontantMineur | null {
+  const normalise = saisie
+    .replace(/[\s   ]/g, "")
+    .replace(",", ".")
+    .trim();
+
+  if (normalise === "") return null;
+  if (!/^\d+(\.\d*)?$/.test(normalise)) return null;
+
+  const [entier = "", fraction = ""] = normalise.split(".");
+  if (fraction.length > devise.decimales) return null;
+
+  const chiffres = entier + fraction.padEnd(devise.decimales, "0");
+  const valeur = Number(chiffres);
+
+  if (!Number.isSafeInteger(valeur)) return null;
+  return valeur;
+}
+
+/**
+ * Rend un montant sous une forme éditable, pour pré-remplir un champ de saisie.
+ *
+ * Différent de `formaterMontant` : ni symbole monétaire, ni séparateur de
+ * milliers — sinon le champ ne serait plus relisible par `analyserMontantSaisi`.
+ *
+ * @example montantVersSaisie(345050, { code: "EUR", decimales: 2 }) // "3450,50"
+ */
+export function montantVersSaisie(mineur: MontantMineur, devise: Devise): string {
+  const negatif = mineur < 0;
+  const chiffres = String(Math.abs(mineur)).padStart(devise.decimales + 1, "0");
+  const coupure = chiffres.length - devise.decimales;
+  const entier = chiffres.slice(0, coupure);
+  const fraction = chiffres.slice(coupure);
+
+  const texte = devise.decimales === 0 ? entier : `${entier},${fraction}`;
+  return negatif ? `-${texte}` : texte;
+}

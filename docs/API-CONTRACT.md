@@ -305,3 +305,214 @@ Périmètres disjoints, fichiers partagés écrits en premier et par un seul aut
 | **Socle partagé** *(d'abord, seul)* | `shared/src/auth.ts` |
 | **A — domaine et routes** | `server/src/modules/auth/**`, `server/src/http/session.ts`, `server/src/http/cookies.ts`, `server/src/http/limiteur.ts` |
 | **B — écrans** | `web/src/pages/**`, `web/src/lib/**`, `web/src/App.tsx` |
+
+---
+
+## §3. Vague 2 — ventes et dépenses *(contrat arrêté)*
+
+Toutes ces routes exigent une session (`exigerSession`). L'entreprise est **lue
+dans le contexte de session**, jamais dans l'URL ni dans le corps : un client ne
+peut pas désigner une autre entreprise, puisqu'il ne désigne rien.
+
+Rappel des décisions de `docs/MOTEUR-ANALYTICS.md` §9 qui façonnent ces routes :
+montants **TTC**, comptabilité de **trésorerie**, **pas d'impayés**.
+
+### 3.1 Deux décisions de conception
+
+#### Les montants transitent en entiers d'unité mineure
+
+`montant_total_mineur: 345000`, jamais `"3450.50"` ni `3450.5`.
+
+La conversion « ce que l'utilisateur tape » → « unité mineure » est un travail de
+**présentation**, fait par le client avec un helper partagé et testé
+(`analyserMontantSaisi`), qui accepte `3 450,50`, `3450.50` et `3450`. Le serveur
+ne voit jamais de décimale : il valide un entier, positif, cohérent avec le
+nombre de décimales de la devise.
+
+L'alternative — envoyer une chaîne décimale et convertir côté serveur —
+demanderait une arithmétique décimale sur chaîne, pour déplacer le risque sans le
+supprimer. Un entier ne peut pas être mal arrondi.
+
+#### La date de l'opération se donne en date locale
+
+`effectuee_le` accepte deux formes :
+
+| Envoyé | Interprété |
+|---|---|
+| `"2026-05-15"` | **00:00:00 dans le fuseau de l'entreprise**, converti en UTC |
+| `"2026-05-15T14:30:00.000Z"` | tel quel, instant exact |
+
+Un commerçant saisit une date, pas un instant. `2026-05-15` pour une entreprise
+en `Europe/Paris` devient `2026-05-14T22:00:00Z` — et retombe bien dans la
+journée du 15 quand le moteur de KPI découpe les périodes.
+
+Toute réponse porte donc **les deux** : `effectuee_le` (instant UTC, ce que la
+base contient) et `date_locale` (`YYYY-MM-DD`, ce que l'utilisateur doit voir).
+Le client n'a aucun calcul de fuseau à faire — cohérent avec « le moteur de
+calcul ne part jamais dans le navigateur ».
+
+### 3.2 `GET /api/ventes`
+
+| Paramètre | Défaut | Rôle |
+|---|---|---|
+| `limite` | 50 | 1 à 200 |
+| `decalage` | 0 | pagination |
+| `du`, `au` | — | dates locales `YYYY-MM-DD`, bornes **incluses toutes les deux** |
+| `statut` | toutes sauf supprimées | `VALIDEE` \| `BROUILLON` \| `ANNULEE` |
+| `moyen_paiement` | — | filtre exact |
+
+`du` et `au` sont **inclusives** ici, contrairement aux périodes du moteur : un
+utilisateur qui demande « du 1er au 31 mai » attend le 31 mai compris. La
+conversion en `[début, fin[` se fait côté serveur — `au=2026-05-31` devient
+`< 2026-06-01T00:00 locale`.
+
+Tri : `effectuee_le` décroissant, puis `numero` décroissant. Le plus récent
+d'abord, c'est ce qu'on vient vérifier après avoir saisi.
+
+```jsonc
+{
+  "elements": [ /* ventes, sans leurs lignes */ ],
+  "total": 128,
+  "limite": 50,
+  "decalage": 0
+}
+```
+
+### 3.3 `POST /api/ventes` → **201**
+
+```jsonc
+{
+  "effectuee_le": "2026-05-15",
+  "montant_total_mineur": 345000,      // ignoré si `lignes` est fourni
+  "moyen_paiement": "CARTE",           // optionnel
+  "statut": "VALIDEE",                 // optionnel, défaut VALIDEE
+  "note": "Commande de la mairie",     // optionnel
+  "lignes": [                          // optionnel
+    { "libelle": "Baguette", "quantite": "12", "prix_unitaire_mineur": 110 }
+  ]
+}
+```
+
+**Quand `lignes` est fourni, le total est recalculé à partir des lignes** et le
+`montant_total_mineur` envoyé est ignoré. Une seule source de vérité : un total
+qui contredirait son propre détail est un bug qu'on ne veut pas pouvoir créer.
+
+Chaque ligne : `montant_mineur = arrondi(quantite × prix_unitaire_mineur)` selon
+la règle d'arrondi commercial du §2 de `MOTEUR-ANALYTICS.md`. Le résultat est
+**stocké**, pas recalculé à la lecture : l'arrondi doit être figé au moment de la
+vente.
+
+`quantite` est une **chaîne décimale** (`"12"`, `"2.5"`), jamais un flottant :
+3 décimales au maximum, ce que la colonne `NUMERIC(14,3)` accepte.
+
+Le `numero` est alloué dans la même transaction que la vente, via la table
+`compteurs` (`UPDATE … RETURNING`), donc sûr sous concurrence.
+
+| Code | Cas |
+|---|---|
+| **201** | vente créée, avec ses lignes |
+| **400** `VALIDATION` | montant négatif, date illisible, moyen de paiement inconnu, quantité ≤ 0, plus de 200 lignes |
+| **401** / **403** | session absente ou compte suspendu |
+
+### 3.4 `GET /api/ventes/:id` → **200**
+
+La vente **avec ses lignes**. `404 RESSOURCE_INTROUVABLE` si elle n'existe pas,
+**si elle est supprimée**, ou **si elle appartient à une autre entreprise** —
+les trois cas sont indistinguables, c'est voulu.
+
+### 3.5 `PATCH /api/ventes/:id` → **200**
+
+Mise à jour partielle : seuls les champs envoyés changent. Envoyer `lignes`
+**remplace intégralement** le jeu de lignes et recalcule le total ; ne pas
+l'envoyer les laisse intactes. Un remplacement complet évite d'inventer une
+sémantique de fusion ligne à ligne que personne ne devinerait.
+
+`null` est une valeur : `{"note": null}` efface la note. Un champ absent ne
+change rien.
+
+### 3.6 `DELETE /api/ventes/:id` → **204**
+
+Suppression **douce** (`supprime_le`). La vente disparaît des listes et des KPI
+mais l'historique reste cohérent. Supprimer deux fois → **404** la seconde fois :
+une ressource supprimée est invisible, y compris pour la supprimer encore.
+
+### 3.7 Dépenses — `/api/depenses`
+
+Mêmes routes, mêmes règles, mêmes codes. Différences :
+
+- champ de montant : `montant_mineur` (une dépense n'a pas de lignes) ;
+- `categorie_id` optionnel, **doit appartenir à l'entreprise** — sinon `400`, et
+  non `404` : le champ est invalide, on ne cherche pas une ressource ;
+- pas de `numero` : une dépense n'a pas de numérotation lisible à afficher ;
+- filtre supplémentaire : `categorie_id`.
+
+### 3.8 `GET /api/categories-depense` → **200**
+
+Les catégories de l'entreprise, non supprimées, triées par `ordre` puis
+`libelle`. Nécessaire au formulaire de dépense. Pas de création ni de
+modification en Vague 2 : les catégories sont copiées à l'inscription depuis les
+modèles, ça suffit pour saisir.
+
+```jsonc
+{ "elements": [ { "id": "uuid", "code": "loyer", "libelle": "Loyer et charges locatives" } ] }
+```
+
+### 3.9 Formes renvoyées
+
+```jsonc
+// vente en liste
+{
+  "id": "uuid",
+  "numero": 42,
+  "effectuee_le": "2026-05-14T22:00:00.000Z",
+  "date_locale": "2026-05-15",
+  "montant_total_mineur": 345000,
+  "moyen_paiement": "CARTE",
+  "statut": "VALIDEE",
+  "note": null,
+  "nombre_lignes": 3,
+  "cree_le": "2026-05-15T09:12:44.001Z"
+}
+
+// vente en détail : les mêmes champs, plus
+{
+  "lignes": [
+    { "id": "uuid", "rang": 1, "libelle": "Baguette",
+      "quantite": "12.000", "prix_unitaire_mineur": 110, "montant_mineur": 1320 }
+  ]
+}
+
+// dépense
+{
+  "id": "uuid",
+  "effectuee_le": "2026-05-19T22:00:00.000Z",
+  "date_locale": "2026-05-20",
+  "montant_mineur": 5000,
+  "categorie": { "id": "uuid", "code": "loyer", "libelle": "Loyer et charges locatives" },
+  "fournisseur": "SCI du Centre",
+  "moyen_paiement": "VIREMENT",
+  "statut": "VALIDEE",
+  "note": null,
+  "cree_le": "2026-05-20T08:03:00.000Z"
+}
+```
+
+`categorie` est **résolue** (pas seulement son identifiant) : afficher une liste
+de dépenses ne doit pas obliger le client à croiser deux appels.
+
+### 3.10 Hors périmètre de la Vague 2
+
+| Exclu | Conséquence, et quand le traiter |
+|---|---|
+| **Clients** | `ventes.client_id` reste `null`. Le KPI `top_clients` de `MOTEUR-ANALYTICS.md` §5.3 sera donc vide tant que les clients n'existent pas — **à livrer avant la Vague 3** si ce KPI compte, ou à retirer du tableau de bord. |
+| Création / modification de catégories | Les modèles copiés à l'inscription suffisent pour saisir. |
+| Import de fichier (CSV, relevé bancaire) | Vraie fonctionnalité à part entière. |
+| Pièces jointes (photo de ticket) | Demande Supabase Storage, prévu après le MVP. |
+
+### 3.11 Découpage du travail
+
+| Lot | Écrit dans |
+|---|---|
+| **Socle partagé** *(d'abord, seul)* | `shared/src/operations.ts`, `shared/src/montant.ts` |
+| **A — domaine et routes** | `server/src/domaine/temps.ts`, `server/src/modules/operations/**` |
+| **B — écrans** | `web/src/pages/**`, `web/src/composants/**` |

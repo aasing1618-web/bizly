@@ -3,16 +3,18 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — Vague 1 (authentification) codée et testée.**
+**Dernière mise à jour : 27 août 2026 — Vague 2 (ventes et dépenses) livrée.**
 
 ---
 
 ## État en une phrase
 
-Vagues 0 et 1 **terminées et vérifiées contre la vraie base Supabase**
-(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). 89 tests automatisés au
-vert, 50 vérifications de bout en bout sur l'instance réelle. La Vague 2
-(saisie des ventes et dépenses) peut s'ouvrir.
+Vagues 0, 1 et 2 **terminées et vérifiées contre la vraie base Supabase**
+(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). **149 tests automatisés** au
+vert, et 51 vérifications de bout en bout sur l'instance réelle pour la seule
+Vague 2. Un client peut créer son compte, saisir ses ventes et ses dépenses.
+La Vague 3 (moteur de KPI) peut s'ouvrir — il lui manque les cas de référence
+métier.
 
 ---
 
@@ -179,12 +181,90 @@ l'utilisateur plutôt que d'afficher un lien mort.
 
 ---
 
+## Vague 2 — ventes et dépenses *(livrée et vérifiée)*
+
+Contrat : `docs/API-CONTRACT.md` §3.
+
+| Livrable | Où |
+|---|---|
+| Temps et fuseaux (jour local ↔ instant UTC) | `server/src/domaine/temps.ts` |
+| Arithmétique des lignes de vente | `server/src/domaine/montant.ts` |
+| Accès aux données | `server/src/modules/operations/depot.ts` |
+| Logique métier | `server/src/modules/operations/service.ts` |
+| Routes | `server/src/modules/operations/routes.ts` |
+| Saisie et listes | `web/src/pages/SectionVentes.tsx`, `SectionDepenses.tsx` |
+
+Routes : `GET/POST /api/ventes`, `GET/PATCH/DELETE /api/ventes/:id`, les mêmes
+pour `/api/depenses`, et `GET /api/categories-depense`.
+**Aucune migration** : le schéma de la Vague 0 suffisait.
+
+### Les deux décisions structurantes
+
+**Les montants transitent en entiers d'unité mineure**, jamais en décimal. La
+conversion « ce que l'utilisateur tape » → centimes est un travail de
+présentation, fait par `analyserMontantSaisi` (partagé, testé), qui accepte
+`3 450,50`, `3450.50` et `3450` — **sans jamais multiplier un flottant** : les
+chiffres sont assemblés en chaîne puis convertis une fois.
+
+**La date se donne en date locale.** `2026-05-15` pour une entreprise à Paris
+devient `2026-05-14T22:00:00Z`. Toute réponse porte les **deux** formes —
+`effectuee_le` (l'instant stocké) et `date_locale` (ce que l'utilisateur doit
+voir) — pour que le client n'ait aucun calcul de fuseau à faire, et ne puisse
+donc pas se tromper de jour sur une vente de fin de soirée.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **149 tests**, 0 échec (89 auparavant, 60 ajoutés) |
+| Fuseaux horaires | 22 tests dédiés, dont les journées de **23 h et 25 h** aux changements d'heure |
+| **Parcours complet sur Supabase réel** (script jetable) | **51 vérifications, 0 échec** |
+
+Ce que le parcours réel a prouvé :
+
+- `0,5 × 5,01 € = 2,51 €` — l'arrondi commercial, pas l'arrondi bancaire ;
+- `1,234 × 9,99 € = 12,33 €` — quantité à 3 décimales, exacte ;
+- le total envoyé par le client est **ignoré** quand des lignes sont fournies ;
+- une vente à `22:30 UTC` le 31 mai s'affiche au **1er juin** pour une
+  entreprise à Paris, et au **31 mai** pour une entreprise à Abidjan ;
+- « du 1er au 31 mai » comprend bien le 31 ;
+- une entreprise reçoit **404** sur la vente d'une autre — en lecture, en
+  modification comme en suppression — et la vente visée reste intacte ;
+- une vente supprimée reste en base avec `supprime_le`, disparaît des listes,
+  et **sort du total que verra le moteur de KPI** ;
+- le planificateur utilise bien `ventes_kpi_idx`.
+
+Écritures de test supprimées, 8 tables métier revérifiées à 0 ligne.
+
+### Défaut trouvé pendant les tests, et corrigé
+
+`exigerSession` était monté via `routeur.use(...)`, donc sur **tout** `/api/*` :
+une route inconnue répondait `401` au lieu du `404 ROUTE_INTROUVABLE` promis par
+le contrat §0. Le middleware est désormais posé route par route.
+
+### Hors périmètre, à traiter avant la Vague 3
+
+**Les clients n'existent pas** : `ventes.client_id` reste `null`. Le KPI
+`top_clients` de `MOTEUR-ANALYTICS.md` §5.3 sera donc vide — il faut soit livrer
+les clients avant la Vague 3, soit le retirer du tableau de bord.
+
+L'import de fichier (CSV, relevé bancaire) et les pièces jointes restent hors
+MVP.
+
+---
+
 ## Prochaine vague
 
-**Vague 2 — saisie des ventes et des dépenses.** Le contrat s'écrit dans
-`docs/API-CONTRACT.md` §3 avant la première ligne de code. Rappel du §9 de
-`docs/MOTEUR-ANALYTICS.md` : montants **TTC**, comptabilité de **trésorerie**,
-pas d'impayés — ces trois choix conditionnent la forme des écrans de saisie.
+**Vague 3 — moteur de KPI et tableau de bord.** Toutes les formules sont déjà
+spécifiées dans `docs/MOTEUR-ANALYTICS.md` §5, et l'arithmétique de base
+(`divArrondi`, `moyenne`, `pourcent`, `repartirEnDixiemes`) est écrite et testée
+depuis la Vague 0.
+
+Il manque **les cas de référence issus du métier réel** — formulaire en fin de
+`MOTEUR-ANALYTICS.md` §8. Huit cas synthétiques couvrent déjà les arrondis et
+les fuseaux ; les cas venant du terrain sont ce qui prouvera que le moteur
+calcule ce qu'un commerçant attend.
 
 ---
 

@@ -4,13 +4,9 @@ import { effacerCookieSession, lireCookieSession, poserCookieSession } from "../
 import { erreurs } from "../../http/erreurs.js";
 import { cleEmail, cleIp, creerLimiteur } from "../../http/limiteur.js";
 import { contexteDe, exigerSession } from "../../http/session.js";
+import { detailsValidation, premierMessage } from "../../http/validation.js";
 import type { MetaRequete, ServiceAuth } from "./service.js";
-import {
-  detailsValidation,
-  premierMessage,
-  schemaConnexion,
-  schemaInscription,
-} from "./validation.js";
+import { schemaConnexion, schemaInscription } from "./validation.js";
 
 /**
  * Routes d'authentification — docs/API-CONTRACT.md §2.

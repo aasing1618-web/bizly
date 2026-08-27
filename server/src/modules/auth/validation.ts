@@ -98,16 +98,7 @@ export const schemaConnexion = z.object({
 export type EntreeInscriptionValidee = z.infer<typeof schemaInscription>;
 export type EntreeConnexionValidee = z.infer<typeof schemaConnexion>;
 
-/** Traduit une erreur zod en `details` exploitables par le client. */
-export function detailsValidation(erreur: z.ZodError): Record<string, unknown> {
-  const champs = erreur.issues.map((probleme) => ({
-    champ: probleme.path.join("."),
-    message: probleme.message,
-  }));
-  return { champs };
-}
-
-/** Premier message lisible, pour l'affichage direct. */
-export function premierMessage(erreur: z.ZodError): string {
-  return erreur.issues[0]?.message ?? "Les données envoyées sont invalides.";
-}
+/**
+ * Les helpers de traduction zod -> erreur API vivent dans
+ * `server/src/http/validation.ts` : ils servent à tous les modules.
+ */

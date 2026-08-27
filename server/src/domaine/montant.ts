@@ -43,6 +43,50 @@ export function abs(valeur: bigint): bigint {
   return valeur < 0n ? -valeur : valeur;
 }
 
+/** `lignes_vente.quantite` est un `NUMERIC(14,3)` : trois décimales, pas plus. */
+export const QUANTITE_DECIMALES = 3;
+const QUANTITE_FACTEUR = 1000n;
+
+/**
+ * Analyse une quantité décimale et la rend en **millièmes**, exactement.
+ *
+ * Chaîne en entrée, `bigint` en sortie, aucun flottant au milieu : `2.5` devient
+ * `2500n` par assemblage de chiffres, jamais par multiplication.
+ *
+ * @example analyserQuantite("2.5")  // 2500n
+ * @example analyserQuantite("12")   // 12000n
+ * @example analyserQuantite("0.001")// 1n
+ * @example analyserQuantite("1.2345") // null — au-delà de 3 décimales
+ */
+export function analyserQuantite(saisie: string): bigint | null {
+  const normalise = saisie.replace(/[\s   ]/g, "").replace(",", ".").trim();
+  if (!/^\d+(\.\d*)?$/.test(normalise)) return null;
+
+  const [entier = "", fraction = ""] = normalise.split(".");
+  if (fraction.length > QUANTITE_DECIMALES) return null;
+
+  const millièmes = BigInt(entier + fraction.padEnd(QUANTITE_DECIMALES, "0"));
+  return millièmes === 0n ? null : millièmes;
+}
+
+/**
+ * Montant d'une ligne de vente : quantité × prix unitaire, arrondi commercial.
+ *
+ * Le résultat est destiné à être **stocké**, pas recalculé à chaque lecture :
+ * l'arrondi doit être figé au moment de la vente. Recalculer plus tard, après
+ * un changement de règle, ferait bouger l'historique.
+ */
+export function montantLigne(quantiteMillièmes: bigint, prixUnitaire: bigint): bigint {
+  return divArrondi(quantiteMillièmes * prixUnitaire, QUANTITE_FACTEUR);
+}
+
+/** Rend une quantité en millièmes sous la forme stockée par Postgres (`12.000`). */
+export function quantiteVersTexte(millièmes: bigint): string {
+  const chiffres = millièmes.toString().padStart(QUANTITE_DECIMALES + 1, "0");
+  const coupure = chiffres.length - QUANTITE_DECIMALES;
+  return `${chiffres.slice(0, coupure)}.${chiffres.slice(coupure)}`;
+}
+
 /**
  * Moyenne d'un total sur un effectif.
  *

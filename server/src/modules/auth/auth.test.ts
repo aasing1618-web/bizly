@@ -4,6 +4,8 @@ import { creerApp } from "../../app.js";
 import type { EtatBase } from "../../db/sonde.js";
 import { definirNiveauJournal } from "../../http/journal.js";
 import { creerDepotMemoire, type DepotMemoire } from "../../test-utils/depotMemoire.js";
+import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
+import { creerServiceOperations } from "../../modules/operations/service.js";
 import { creerServiceAuth } from "./service.js";
 
 /**
@@ -21,6 +23,7 @@ function monter(depot: DepotMemoire) {
   return creerApp({
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot }),
+    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

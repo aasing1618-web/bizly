@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { creerApp } from "./app.js";
 import { creerServiceAuth } from "./modules/auth/service.js";
 import { creerDepotMemoire } from "./test-utils/depotMemoire.js";
+import { creerDepotOperationsMemoire } from "./test-utils/depotOperationsMemoire.js";
+import { creerServiceOperations } from "./modules/operations/service.js";
 import type { EtatBase } from "./db/sonde.js";
 import { definirNiveauJournal } from "./http/journal.js";
 
@@ -19,6 +21,7 @@ function app(sonderBase: () => Promise<EtatBase>) {
   return creerApp({
     sonderBase,
     serviceAuth: creerServiceAuth({ depot: creerDepotMemoire() }),
+    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
     version: "0.1.0-test",
     demarreLe: Date.now() - 5_000,
     production: false,
