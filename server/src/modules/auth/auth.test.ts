@@ -263,6 +263,43 @@ describe("POST /api/connexion", () => {
     expect(bloquee.status).toBe(429);
     expect(bloquee.body.erreur.code).toBe("TROP_DE_REQUETES");
   });
+
+  it("ne bloque pas un collègue derrière la même IP après 10 échecs d'un autre", async () => {
+    // Un commerce partage une seule IP publique. Si la limite par IP valait 10
+    // comme celle par e-mail, dix erreurs d'une personne verrouilleraient toute
+    // l'équipe — y compris ceux qui tapent le bon mot de passe, puisque la
+    // limitation s'applique AVANT l'authentification.
+    await request(app).post("/api/inscription").send({
+      entreprise: { nom: "Boulangerie Martin", secteur: "commerce_detail" },
+      utilisateur: { nom: "Bob", email: "bob@exemple.fr", mot_de_passe: MOT_DE_PASSE },
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      await request(app)
+        .post("/api/connexion")
+        .send({ email: "awa@exemple.fr", mot_de_passe: "faux-mot-de-passe" });
+    }
+
+    const collegue = await request(app)
+      .post("/api/connexion")
+      .send({ email: "bob@exemple.fr", mot_de_passe: MOT_DE_PASSE });
+
+    expect(collegue.status).toBe(200);
+  });
+
+  it("finit tout de même par bloquer un balayage massif depuis une IP", async () => {
+    // La limite par IP reste large, mais elle existe : 30 tentatives sur des
+    // e-mails tous différents doivent finir par être arrêtées.
+    let dernierStatut = 0;
+    for (let i = 0; i < 31; i += 1) {
+      const reponse = await request(app)
+        .post("/api/connexion")
+        .send({ email: `cible-${i}@exemple.fr`, mot_de_passe: "peu-importe-ici" });
+      dernierStatut = reponse.status;
+    }
+
+    expect(dernierStatut).toBe(429);
+  });
 });
 
 describe("GET /api/moi", () => {

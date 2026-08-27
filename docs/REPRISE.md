@@ -9,10 +9,10 @@
 
 ## État en une phrase
 
-Vague 0 vérifiée sur Supabase (PostgreSQL 17.6, `eu-central-1`, TLS authentifié).
-Vague 1 codée, **87 tests au vert**, mais **pas encore rejouée contre la vraie
-base** : le mot de passe Postgres a été réinitialisé, `DATABASE_URL` doit être
-remis à jour dans `.env`.
+Vagues 0 et 1 **terminées et vérifiées contre la vraie base Supabase**
+(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). 89 tests automatisés au
+vert, 50 vérifications de bout en bout sur l'instance réelle. La Vague 2
+(saisie des ventes et dépenses) peut s'ouvrir.
 
 ---
 
@@ -86,7 +86,7 @@ Il manque **3 à 5 cas issus du métier réel** — voir le formulaire en fin de
 
 ---
 
-## Vague 1 — authentification *(code terminé, vérification base en attente)*
+## Vague 1 — authentification *(livrée et vérifiée)*
 
 Contrat : `docs/API-CONTRACT.md` §2. **Inscription ouverte**, décidée le 27 août 2026.
 
@@ -113,18 +113,37 @@ et `categories_depense` existaient déjà depuis la Vague 0.
 | Quoi | Résultat |
 |---|---|
 | `npm run typecheck` | 4 workspaces, 0 erreur |
-| `npm test` | **87 tests**, 0 échec (38 en Vague 0, 49 ajoutés) |
+| `npm test` | **89 tests**, 0 échec (38 en Vague 0, 51 ajoutés) |
 | `npm run build` | shared + server + les 2 bundles |
 | Binaire construit, base injoignable | `/api/moi` → 401 sans toucher la base ; cookie forgé → 401 ; `/api/deconnexion` → 204 ; corps invalide → 400 **avant** tout accès base |
+| **Parcours complet sur le serveur réel + Supabase réel** (script jetable) | **50 vérifications, 0 échec** |
 
-### Reste à vérifier contre la vraie base
+Détail de ce que le parcours réel a prouvé :
 
-Dès que `DATABASE_URL` est à jour :
+- l'inscription crée bien, **en une seule transaction**, l'entreprise, le
+  propriétaire, le compteur de ventes à 0 et les catégories de dépense
+  **filtrées par secteur** — 18 pour un commerce de détail, 19 pour la
+  restauration, « matières premières » absente du premier ;
+- la base ne contient **aucun mot de passe en clair** : empreinte
+  `scrypt$32768$8$1$…`, et `sessions.token_hash` fait exactement 32 octets ;
+- e-mail inconnu et mot de passe faux rendent des réponses **strictement
+  identiques**, avec un écart de temps de 1 % (187 ms contre 189 ms) : pas
+  d'oracle d'énumération, ni par le message ni par le chronomètre ;
+- une suspension coupe une session **déjà ouverte** à la requête suivante ;
+- la déconnexion **révoque en base** — rejouer le cookie ne donne plus rien.
 
-- inscription réelle → entreprise + propriétaire + compteur + catégories copiées
-  selon le secteur, **le tout dans une seule transaction** ;
-- connexion, `GET /api/moi`, déconnexion sur un vrai cookie ;
-- que `sessions` ne contienne bien que des SHA-256 de 32 octets.
+Toutes les écritures de test ont été supprimées et l'absence de résidu vérifiée
+table par table : les 8 tables métier sont revenues à 0 ligne.
+
+### Défaut trouvé pendant cette vérification, et corrigé
+
+La limite de connexion par IP valait 10 / 15 min, comme celle par e-mail. Or un
+commerce ou un bureau partage **une seule IP publique** : dix mots de passe
+ratés cumulés par l'équipe auraient verrouillé tout le monde, y compris ceux qui
+tapent le bon mot de passe, puisque la limitation s'applique avant
+l'authentification. La limite par IP est passée à **30 / 15 min** ; celle par
+e-mail, qui protège un compte précis, reste à 10. Deux tests couvrent désormais
+les deux cas.
 
 ### Décisions de sécurité, et pourquoi
 

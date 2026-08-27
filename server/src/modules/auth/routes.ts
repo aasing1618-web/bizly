@@ -24,9 +24,23 @@ export type OptionsRouteurAuth = {
   production: boolean;
 };
 
-/** 10 tentatives / 15 min — par IP ET par e-mail. */
-const LIMITE_CONNEXION = { maximum: 10, fenetreMs: 15 * 60 * 1000 };
-/** 5 inscriptions / heure / IP. */
+/**
+ * Deux limites de connexion, aux rôles distincts — et aux seuils distincts.
+ *
+ * **Par e-mail (10 / 15 min)** : c'est elle qui protège UN compte contre la
+ * force brute. Serrée, parce qu'un propriétaire légitime ne se trompe pas dix
+ * fois de suite sur son propre mot de passe.
+ *
+ * **Par IP (30 / 15 min)** : elle ne protège aucun compte en particulier, elle
+ * ralentit le balayage de plusieurs comptes depuis une même machine. Elle doit
+ * rester LARGE, parce qu'un commerce ou un bureau partage une seule IP
+ * publique : au même seuil que l'e-mail, dix erreurs cumulées par l'équipe
+ * bloqueraient tout le monde — y compris ceux qui tapent le bon mot de passe,
+ * puisque la limitation s'applique avant l'authentification.
+ */
+const LIMITE_CONNEXION_EMAIL = { maximum: 10, fenetreMs: 15 * 60 * 1000 };
+const LIMITE_CONNEXION_IP = { maximum: 30, fenetreMs: 15 * 60 * 1000 };
+/** 5 inscriptions / heure / IP : créer un compte est un geste rare. */
 const LIMITE_INSCRIPTION = { maximum: 5, fenetreMs: 60 * 60 * 1000 };
 
 function meta(requete: Request): MetaRequete {
@@ -44,7 +58,8 @@ export function creerRouteurAuth(options: OptionsRouteurAuth): Router {
   const routeur = Router();
 
   const limiteInscription = creerLimiteur(LIMITE_INSCRIPTION);
-  const limiteConnexion = creerLimiteur(LIMITE_CONNEXION);
+  const limiteConnexionEmail = creerLimiteur(LIMITE_CONNEXION_EMAIL);
+  const limiteConnexionIp = creerLimiteur(LIMITE_CONNEXION_IP);
 
   routeur.post("/inscription", async (requete, reponse) => {
     if (!limiteInscription.autoriser(cleIp(requete.ip))) throw erreurs.tropDeRequetes();
@@ -66,19 +81,22 @@ export function creerRouteurAuth(options: OptionsRouteurAuth): Router {
       throw erreurs.validation(premierMessage(analyse.error), detailsValidation(analyse.error));
     }
 
-    // Deux compteurs : l'IP protège des attaques par balayage depuis une
-    // machine, l'e-mail protège UN compte visé depuis plusieurs machines.
-    // L'un sans l'autre laisse une porte ouverte.
-    const passeIp = limiteConnexion.autoriser(cleIp(requete.ip));
-    const passeEmail = limiteConnexion.autoriser(cleEmail(analyse.data.email));
+    // Les deux compteurs sont consultés avant de conclure, pour qu'une
+    // tentative compte dans chacun — sinon l'évaluation court-circuitée
+    // laisserait l'un des deux à la traîne.
+    const passeIp = limiteConnexionIp.autoriser(cleIp(requete.ip));
+    const passeEmail = limiteConnexionEmail.autoriser(cleEmail(analyse.data.email));
     if (!passeIp || !passeEmail) throw erreurs.tropDeRequetes();
 
     const { session, jeton } = await service.connecter(analyse.data, meta(requete));
 
-    // Connexion réussie : on efface le compteur de l'e-mail. Sinon un
+    // Connexion réussie : on efface le compteur de l'E-MAIL. Sinon un
     // utilisateur qui se trompe neuf fois puis réussit resterait à un doigt du
     // blocage pendant un quart d'heure.
-    limiteConnexion.reinitialiser(cleEmail(analyse.data.email));
+    //
+    // Le compteur d'IP n'est PAS remis à zéro : sinon un attaquant balayant des
+    // comptes lui appartenant se donnerait un quota infini.
+    limiteConnexionEmail.reinitialiser(cleEmail(analyse.data.email));
 
     poserCookieSession(reponse, jeton, { production });
     reponse.status(200).json(session);

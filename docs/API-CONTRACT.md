@@ -205,7 +205,7 @@ compteur serait cassée dès la première dépense.
 | **200** | `{ "utilisateur": {…}, "entreprise": {…} }` + cookie |
 | **401** `IDENTIFIANTS_INVALIDES` | e-mail inconnu **ou** mot de passe faux |
 | **403** `COMPTE_SUSPENDU` | identifiants bons, entreprise ou utilisateur suspendu |
-| **429** `TROP_DE_REQUETES` | 10 tentatives / 15 min, par IP **et** par e-mail |
+| **429** `TROP_DE_REQUETES` | **10 tentatives / 15 min par e-mail**, **30 / 15 min par IP** |
 
 Deux exigences non négociables :
 
@@ -269,9 +269,23 @@ table `devises` pour formater un montant.
 
 ### Limitation de débit
 
-En mémoire du processus, fenêtre glissante. Assumé : une seule instance en MVP.
-Le jour où il y en a deux, cela demandera un magasin partagé — c'est écrit ici
-pour que la découverte ne se fasse pas en production.
+En mémoire du processus, fenêtre glissante.
+
+**Les deux seuils de connexion sont volontairement différents**, parce que les
+deux compteurs ne font pas le même travail :
+
+| Compteur | Seuil | Rôle |
+|---|---|---|
+| **par e-mail** | 10 / 15 min | Protège **un compte** contre la force brute. Serré : un propriétaire ne se trompe pas dix fois sur son propre mot de passe. |
+| **par IP** | 30 / 15 min | Ralentit le **balayage de plusieurs comptes** depuis une machine. Large : un commerce ou un bureau partage une seule IP publique. Au même seuil que l'e-mail, dix erreurs cumulées par l'équipe bloqueraient tout le monde — y compris ceux qui tapent le bon mot de passe, puisque la limitation s'applique avant l'authentification. |
+
+Une connexion réussie remet à zéro le compteur de **l'e-mail** seulement. Remettre
+aussi celui de l'IP donnerait un quota infini à qui balaye des comptes en
+possédant l'un d'eux.
+
+Assumé : une seule instance en MVP. Le jour où il y en a deux, chacune accordera
+le quota complet — il faudra alors un magasin partagé. C'est écrit ici pour que
+la découverte ne se fasse pas en production.
 
 ### Hors périmètre de la Vague 1
 
