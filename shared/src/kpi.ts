@@ -54,8 +54,22 @@ export type ComparaisonPublique = {
  */
 export type Indicateur = {
   valeur: number | null;
-  /** Dixièmes de point. `122` = +12,2 %. */
+  /**
+   * Dixièmes de point. `122` = +12,2 %.
+   *
+   * **`null` quand la valeur a traversé zéro** entre les deux périodes. Un
+   * bénéfice passant de +20,00 € à −60,00 € donnerait −400,0 % : techniquement
+   * exact, illisible, et trompeur. Dans ce cas seul `evolution_montant` a un
+   * sens (spécification métier §3.5).
+   */
   evolution_pourcent: number | null;
+  /**
+   * Écart en unité mineure par rapport à la période précédente.
+   *
+   * Toujours renseigné pour un indicateur monétaire : c'est la seule mesure
+   * d'évolution qui reste lisible quand le signe change.
+   */
+  evolution_montant: number | null;
   base_nulle: boolean;
 };
 

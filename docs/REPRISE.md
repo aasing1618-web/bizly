@@ -3,7 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — Vague 3 (moteur de KPI) livrée.**
+**Dernière mise à jour : 27 août 2026 — cas de référence métier reçu et encodé.**
 
 ---
 
@@ -334,6 +334,24 @@ les clients.
 
 Export PDF/tableur, comparaison à l'année précédente, objectifs et prévisions :
 après le MVP, ou en Vague 4 pour les derniers.
+
+---
+
+## Cas de référence métier — reçu le 27 août 2026
+
+La spécification métier a été fournie, avec un cas de référence chiffré
+« Boutique Test ». **Recalculé indépendamment : 26 valeurs sur 26 confirmées.**
+Encodé dans `server/src/domaine/casReference.test.ts` — 20 assertions, toutes
+au vert sur ce que le modèle de données actuel permet.
+
+Deux règles de cette spécification contredisaient le code et ont été
+**appliquées** : l'évolution du bénéfice s'exprime en montant quand le signe est
+traversé, et l'évolution du panier moyen ne passe plus par un arrondi
+intermédiaire.
+
+**Cinq contradictions restent ouvertes, et huit questions sur quatorze sont
+bloquées faute de données** (catalogue de produits avec coût, clients rattachés
+aux ventes) — tout est détaillé dans `docs/ECARTS-SPEC.md`.
 
 ---
 

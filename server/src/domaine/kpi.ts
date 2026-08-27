@@ -77,24 +77,48 @@ function sommeDepenses(depenses: DepenseAgregable[]): bigint {
  * dont la situation s'améliore.
  */
 function indicateur(valeur: bigint, precedente: bigint): Indicateur {
+  const ecart = enNombreSur(valeur - precedente);
+
   if (precedente === 0n) {
-    return { valeur: enNombreSur(valeur), evolution_pourcent: null, base_nulle: true };
+    return {
+      valeur: enNombreSur(valeur),
+      evolution_pourcent: null,
+      evolution_montant: ecart,
+      base_nulle: true,
+    };
   }
+
   return {
     valeur: enNombreSur(valeur),
-    evolution_pourcent: pourcent(valeur - precedente, abs(precedente)),
+    // Le pourcentage n'est rendu que si le signe n'a pas changé : sinon il est
+    // exact mais illisible, et l'écart en montant est la seule lecture juste.
+    evolution_pourcent: memeSigne(valeur, precedente)
+      ? pourcent(valeur - precedente, abs(precedente))
+      : null,
+    evolution_montant: ecart,
     base_nulle: false,
   };
+}
+
+/** Vrai si les deux valeurs sont du même côté de zéro (zéro compris comme positif). */
+function memeSigne(a: bigint, b: bigint): boolean {
+  return a >= 0n === b >= 0n;
 }
 
 /** Même chose pour un effectif (nombre de ventes, de dépenses). */
 function indicateurEffectif(valeur: number, precedent: number): Indicateur {
   if (precedent === 0) {
-    return { valeur, evolution_pourcent: null, base_nulle: true };
+    return {
+      valeur,
+      evolution_pourcent: null,
+      evolution_montant: valeur - precedent,
+      base_nulle: true,
+    };
   }
   return {
     valeur,
     evolution_pourcent: pourcent(BigInt(valeur - precedent), BigInt(precedent)),
+    evolution_montant: valeur - precedent,
     base_nulle: false,
   };
 }
@@ -114,14 +138,41 @@ function indicateurMoyenne(
   const valeur = moyenne(total, effectif);
   const precedente = moyenne(totalPrecedent, effectifPrecedent);
 
-  if (valeur === null) return { valeur: null, evolution_pourcent: null, base_nulle: precedente === null };
-  if (precedente === null || precedente === 0n) {
-    return { valeur: enNombreSur(valeur), evolution_pourcent: null, base_nulle: true };
+  if (valeur === null) {
+    return {
+      valeur: null,
+      evolution_pourcent: null,
+      evolution_montant: null,
+      base_nulle: precedente === null,
+    };
   }
+
+  if (precedente === null || precedente === 0n) {
+    return {
+      valeur: enNombreSur(valeur),
+      evolution_pourcent: null,
+      evolution_montant: precedente === null ? null : enNombreSur(valeur - precedente),
+      base_nulle: true,
+    };
+  }
+
+  // Évolution calculée sur les moyennes EXACTES, pas sur leurs arrondis.
+  //
+  //   (total/effectif − totalPrec/effectifPrec) / (totalPrec/effectifPrec)
+  // = (total × effectifPrec − totalPrec × effectif) / (totalPrec × effectif)
+  //
+  // Tout reste en entiers. Arrondir les deux moyennes au centime avant de les
+  // comparer ferait dériver le pourcentage — c'est exactement l'arrondi
+  // intermédiaire que la spécification métier §1 interdit.
+  const numerateur = total * BigInt(effectifPrecedent) - totalPrecedent * BigInt(effectif);
+  const denominateur = totalPrecedent * BigInt(effectif);
 
   return {
     valeur: enNombreSur(valeur),
-    evolution_pourcent: pourcent(valeur - precedente, abs(precedente)),
+    evolution_pourcent: memeSigne(valeur, precedente)
+      ? pourcent(numerateur, abs(denominateur))
+      : null,
+    evolution_montant: enNombreSur(valeur - precedente),
     base_nulle: false,
   };
 }
