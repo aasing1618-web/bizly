@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Jeu de couleurs de base. L'identité visuelle définitive relève de la Vague 6 :
+   ces variables existent pour que rien ne soit codé en dur d'ici là. */
+@theme {
+  --color-ardoise-950: #0b1220;
+  --color-ardoise-900: #111a2b;
+  --color-ardoise-700: #2a3852;
+  --color-ardoise-400: #8296b8;
+  --color-menthe-400: #34d399;
+  --color-ambre-400: #fbbf24;
+  --color-corail-400: #fb7185;
+}
+
+html {
+  color-scheme: dark;
+}

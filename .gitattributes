@@ -1,0 +1,14 @@
+# Le dépôt stocke tout en LF, quelle que soit la machine.
+# Sans ça, un aller-retour Windows / hébergeur Linux produit des diffs entiers
+# où seule la fin de ligne a changé.
+* text=auto eol=lf
+
+# Fichiers binaires : jamais de conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

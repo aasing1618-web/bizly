@@ -1,0 +1,33 @@
+{
+  "name": "bizly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SaaS de gestion et d'analyse pour petites entreprises",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "web",
+    "admin"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @bizly/shared && concurrently -n api,web,admin -c blue,green,magenta \"npm:dev:server\" \"npm:dev:web\" \"npm:dev:admin\"",
+    "dev:server": "npm run dev -w @bizly/server",
+    "dev:web": "npm run dev -w @bizly/web",
+    "dev:admin": "npm run dev -w @bizly/admin",
+    "build": "npm run build -w @bizly/shared && npm run build -w @bizly/server && npm run build -w @bizly/web && npm run build -w @bizly/admin",
+    "start": "node server/dist/index.js",
+    "typecheck": "npm run build -w @bizly/shared && npm run typecheck --workspaces --if-present",
+    "test": "npm run build -w @bizly/shared && npm run test --workspaces --if-present",
+    "migrate": "npm run migrate -w @bizly/server",
+    "migrate:statut": "npm run migrate -w @bizly/server -- --statut"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.2"
+  }
+}

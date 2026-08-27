@@ -1,0 +1,23 @@
+# Dépendances
+node_modules/
+
+# Secrets — ne doivent JAMAIS entrer dans le dépôt
+.env
+.env.*
+!.env.example
+
+# Builds
+dist/
+server/public/
+*.tsbuildinfo
+
+# Outils
+.vite/
+coverage/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Scripts jetables de vérification (créés puis supprimés à chaque vague)
+tmp-*
