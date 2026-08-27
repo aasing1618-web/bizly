@@ -10,6 +10,7 @@ import {
 } from "../../test-utils/depotOperationsMemoire.js";
 import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "./service.js";
+import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
 
 /**
  * Ventes et dépenses, de bout en bout en HTTP, sans Postgres.
@@ -35,6 +36,7 @@ beforeEach(() => {
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot: depotAuth }),
     serviceOperations: creerServiceOperations(depotOps),
+    depotKpi: creerDepotKpiMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

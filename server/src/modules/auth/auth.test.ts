@@ -7,6 +7,7 @@ import { creerDepotMemoire, type DepotMemoire } from "../../test-utils/depotMemo
 import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
 import { creerServiceOperations } from "../../modules/operations/service.js";
 import { creerServiceAuth } from "./service.js";
+import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
 
 /**
  * Tests de bout en bout de l'authentification, sans Postgres.
@@ -24,6 +25,7 @@ function monter(depot: DepotMemoire) {
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot }),
     serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
+    depotKpi: creerDepotKpiMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

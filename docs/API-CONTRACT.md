@@ -516,3 +516,143 @@ de dépenses ne doit pas obliger le client à croiser deux appels.
 | **Socle partagé** *(d'abord, seul)* | `shared/src/operations.ts`, `shared/src/montant.ts` |
 | **A — domaine et routes** | `server/src/domaine/temps.ts`, `server/src/modules/operations/**` |
 | **B — écrans** | `web/src/pages/**`, `web/src/composants/**` |
+
+---
+
+## §4. Vague 3 — moteur de KPI et tableau de bord *(contrat arrêté)*
+
+Les formules font foi dans `docs/MOTEUR-ANALYTICS.md` §5. Ce contrat ne décrit
+que leur transport.
+
+### 4.1 Une seule route
+
+`GET /api/tableau-de-bord` — session requise.
+
+**Un seul appel** rend tout ce que l'écran affiche : indicateurs, comparaison,
+série journalière, répartitions. Découper en cinq routes ferait cinq
+allers-retours, et surtout cinq instantanés différents de la base — le total
+des répartitions pourrait ne plus correspondre à l'indicateur affiché au-dessus.
+
+| Paramètre | Défaut | Valeurs |
+|---|---|---|
+| `periode` | `mois` | `jour`, `semaine`, `mois`, `trimestre`, `annee`, `personnalisee` |
+| `reference` | aujourd'hui | date locale `AAAA-MM-JJ` : la période est celle qui **contient** ce jour |
+| `du`, `au` | — | obligatoires si `periode=personnalisee`, bornes **incluses** |
+
+`reference` plutôt qu'un décalage (`-1`, `-2`) : « le mois qui contient le
+15 mai » se lit sans ambiguïté, ne dépend pas de la date du jour, et rend l'URL
+partageable et rejouable.
+
+### 4.2 Ce que rend la route
+
+```jsonc
+{
+  "periode": {
+    "cle": "mois",
+    "debut": "2026-04-30T22:00:00.000Z",
+    "fin":   "2026-05-31T22:00:00.000Z",
+    "debut_local": "2026-05-01",
+    "fin_local":   "2026-05-31",          // dernier jour INCLUS, pour l'affichage
+    "fuseau": "Europe/Paris",
+    "en_cours": true
+  },
+  "comparaison": {
+    "debut_local": "2026-04-01",
+    "fin_local":   "2026-04-08",
+    "a_date": true                        // voir §4.3
+  },
+  "devise": { "code": "EUR", "decimales": 2 },
+
+  "kpi": {
+    "chiffre_affaires": { "valeur": 345000, "evolution_pourcent": 122,  "base_nulle": false },
+    "depenses_totales": { "valeur": 89000,  "evolution_pourcent": -45,  "base_nulle": false },
+    "benefice":         { "valeur": 256000, "evolution_pourcent": 210,  "base_nulle": false },
+    "nombre_ventes":    { "valeur": 12,     "evolution_pourcent": 90,   "base_nulle": false },
+    "panier_moyen":     { "valeur": 28750,  "evolution_pourcent": 17,   "base_nulle": false },
+    "nombre_depenses":  { "valeur": 4,      "evolution_pourcent": 0,    "base_nulle": false },
+    "depense_moyenne":  { "valeur": 22250,  "evolution_pourcent": -45,  "base_nulle": false },
+    "marge_pourcent":   { "valeur": 742 }
+  },
+
+  "serie_ca_par_jour": [
+    { "date_locale": "2026-05-01", "ca": 12000, "nombre_ventes": 2 }
+  ],
+  "repartition_depenses": [
+    { "id": "uuid", "libelle": "Loyer", "montant": 60000, "part_dixiemes": 674 }
+  ],
+  "ca_par_moyen_paiement": [
+    { "id": "CARTE", "libelle": "Carte bancaire", "montant": 240000, "part_dixiemes": 696 }
+  ],
+  "top_produits": [
+    { "libelle": "Baguette", "quantite": "120.000", "montant": 13200 }
+  ],
+  "meilleur_jour_semaine": { "jour": 2, "libelle": "mardi", "ca_moyen": 11000 }
+}
+```
+
+Rappels de format, identiques partout dans le produit :
+
+- **montants** : entiers d'unité mineure. `345000` = 3 450,00 € ;
+- **pourcentages** : dixièmes de point. `742` = 74,2 %, `-45` = −4,5 % ;
+- **`valeur: null`** signifie *non calculable*, jamais zéro. Un panier moyen sans
+  vente n'est pas 0 € (`MOTEUR-ANALYTICS.md` §5.1) ;
+- **`base_nulle: true`** : la période précédente valait 0, l'évolution n'a pas de
+  sens. L'interface affiche « nouveau », pas « +∞ % » ;
+- **`part_dixiemes`** : les parts d'une répartition somment **exactement 1000**,
+  par la méthode du plus fort reste (§2.5).
+
+### 4.3 Comparaison d'une période en cours
+
+Décision `MOTEUR-ANALYTICS.md` §9, point 1 : quand la période court encore, la
+comparaison est faite **à date**. Le 8 du mois, « ce mois » est comparé au
+1–8 du mois précédent, et `comparaison.a_date` vaut `true` pour que l'interface
+l'écrive noir sur blanc.
+
+Sans cela, 8 jours comparés à 31 afficheraient mécaniquement −74 % : un chiffre
+faux, et un indicateur qui ment une fois n'est plus jamais consulté.
+
+Si le mois précédent est plus court que le nombre de jours écoulés (31 jours
+courus en mars contre 28 en février), la fenêtre de comparaison est **bornée à
+la fin du mois précédent** — jamais débordée sur celui d'avant.
+
+### 4.4 Ce qui entre dans le calcul
+
+Exactement le filtre de `MOTEUR-ANALYTICS.md` §4 : `statut = 'VALIDEE'`,
+`supprime_le IS NULL`, `effectuee_le` dans `[debut, fin[`, `entreprise_id` du
+contexte de session. Les brouillons, les annulées et les supprimées n'entrent
+dans **aucun** indicateur.
+
+### 4.5 Codes de retour
+
+| Code | Cas |
+|---|---|
+| **200** | y compris sans aucune donnée — les indicateurs valent alors `0` ou `null` |
+| **400** `VALIDATION` | période inconnue, date illisible, `personnalisee` sans `du`/`au`, intervalle supérieur à 3 ans |
+| **401** / **403** | session absente, compte suspendu |
+
+Un tableau de bord vide est un **succès**, pas une erreur : c'est l'état normal
+d'un compte le jour de son inscription, et l'interface doit y accueillir
+l'utilisateur, pas lui montrer un message d'échec.
+
+La limite de 3 ans borne le coût d'une requête : au-delà, l'écran deviendrait
+illisible bien avant que la base ne peine.
+
+### 4.6 Hors périmètre de la Vague 3
+
+| Exclu | Pourquoi |
+|---|---|
+| **`top_clients`** | Les clients n'existent pas (Vague 2 §3.10) : ce KPI serait structurellement vide. Une case toujours à zéro n'est pas un indicateur, c'est une promesse non tenue. Il reviendra avec les clients. |
+| Export PDF / tableur | Après le MVP. |
+| Comparaison à l'année précédente | Le comparatif à la période précédente couvre le besoin immédiat. |
+| Objectifs et prévisions | Relèvent du moteur de questions intelligentes (Vague 4). |
+
+### 4.7 Découpage du travail
+
+| Lot | Écrit dans |
+|---|---|
+| **Socle partagé** *(d'abord, seul)* | `shared/src/kpi.ts` |
+| **A — moteur et routes** | `server/src/domaine/periodes.ts`, `server/src/domaine/kpi.ts`, `server/src/modules/kpi/**` |
+| **B — écran** | `web/src/pages/TableauDeBord.tsx`, `web/src/composants/**` |
+
+Le moteur (`domaine/kpi.ts`) est **pur** : entrées → sortie, sans horloge ni
+base. C'est ce qui rend les cas de référence du §8 testables au centime.

@@ -3,18 +3,18 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — Vague 2 (ventes et dépenses) livrée.**
+**Dernière mise à jour : 27 août 2026 — Vague 3 (moteur de KPI) livrée.**
 
 ---
 
 ## État en une phrase
 
-Vagues 0, 1 et 2 **terminées et vérifiées contre la vraie base Supabase**
-(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). **149 tests automatisés** au
-vert, et 51 vérifications de bout en bout sur l'instance réelle pour la seule
-Vague 2. Un client peut créer son compte, saisir ses ventes et ses dépenses.
-La Vague 3 (moteur de KPI) peut s'ouvrir — il lui manque les cas de référence
-métier.
+Vagues 0 à 3 **terminées et vérifiées contre la vraie base Supabase**
+(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). **216 tests automatisés** au
+vert, 48 vérifications de bout en bout sur l'instance réelle pour la seule
+Vague 3. Un client peut créer son compte, saisir ses ventes et ses dépenses, et
+lire son tableau de bord. Reste le cœur de valeur : les **questions
+intelligentes** (Vague 4), dont le contenu métier est encore à écrire.
 
 ---
 
@@ -254,17 +254,104 @@ MVP.
 
 ---
 
+## Vague 3 — moteur de KPI et tableau de bord *(livrée et vérifiée)*
+
+Contrat : `docs/API-CONTRACT.md` §4. Formules : `docs/MOTEUR-ANALYTICS.md` §5.
+
+| Livrable | Où |
+|---|---|
+| Périodes, comparaison, jours locaux | `server/src/domaine/periodes.ts` |
+| **Moteur de calcul, fonction pure** | `server/src/domaine/kpi.ts` |
+| Lecture des données | `server/src/modules/kpi/depot.ts` |
+| Route | `server/src/modules/kpi/routes.ts` |
+| Écran | `web/src/pages/TableauDeBord.tsx`, `web/src/composants/Tuile.tsx`, `Graphiques.tsx` |
+
+**Une seule route** : `GET /api/tableau-de-bord`. Découper en cinq aurait produit
+cinq instantanés différents de la base — le total d'une répartition pouvant ne
+plus correspondre à l'indicateur affiché juste au-dessus.
+
+**Aucune migration** : le schéma de la Vague 0 suffisait, index `ventes_kpi_idx`
+compris.
+
+### Le moteur est une fonction pure
+
+`calculerKpi` ne lit ni l'horloge, ni la base, ni l'environnement : on lui
+injecte tout, y compris l'instant courant. C'est exactement ce qui rend les cas
+de référence du §8 exécutables sans Postgres — ils sont dans
+`server/src/domaine/kpi.test.ts`, un `describe` par cas.
+
+Le **filtrage** reste en SQL (l'index partiel correspond mot pour mot au
+prédicat du §4), le **calcul** est en TypeScript. Seul `top_produits` est agrégé
+en base : remonter toutes les lignes de vente d'une année pour les sommer en
+mémoire serait absurde.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **216 tests**, 0 échec (149 auparavant, 67 ajoutés) |
+| Périodes | 21 tests, dont les mois de 23 h / 25 h et le mois de février |
+| Moteur | 28 tests — **les 8 cas de référence du §8** |
+| **Parcours complet sur Supabase réel** | **48 vérifications, 0 échec** |
+
+Le parcours réel a **saisi le cas A par l'API** puis relu le tableau de bord :
+CA 345 000, dépenses 89 000, bénéfice 256 000, panier moyen 28 750, marge 742.
+Au centime, sur la vraie base.
+
+Il a aussi prouvé :
+
+- **brouillons, annulées et supprimées n'entrent dans aucun indicateur** ;
+- une vente à 22 h 30 le 31 mai compte pour **juin**, pas pour mai ;
+- la série journalière **somme exactement** au chiffre d'affaires affiché ;
+- les répartitions font **exactement 100,0 %** ;
+- `top_produits` cumule bien les quantités d'un même article sur plusieurs
+  ventes ;
+- une entreprise voit un tableau **vide** des données d'une autre, et aucun
+  paramètre d'URL ne permet de viser une autre entreprise.
+
+### Défaut trouvé pendant les tests, et corrigé
+
+`reference=2026-02-31` — une date qui n'existe pas — était refusée pour
+`periode=jour` mais **acceptée** pour `periode=mois`, où seuls l'année et le mois
+sont lus. Le même paramètre fautif se comportait différemment selon la
+granularité. La date de référence est désormais validée en amont, toujours.
+
+### Trois choix d'affichage qui comptent
+
+- **`null` n'est pas `0`.** Un panier moyen sans vente affiche `—`. Afficher
+  « 0 € » ferait croire à des ventes à zéro euro.
+- **Une base de comparaison nulle affiche « nouveau »**, jamais « +100 % ».
+- **La comparaison tronquée est annoncée** par une étiquette « à date » : sans
+  elle, l'utilisateur croirait comparer à un mois entier.
+
+### Hors périmètre, décidé
+
+**`top_clients` retiré du tableau de bord.** Les clients n'existent pas encore
+(Vague 2 §3.10) : cet indicateur serait structurellement vide. Une case toujours
+à zéro n'est pas un indicateur, c'est une promesse non tenue. Il reviendra avec
+les clients.
+
+Export PDF/tableur, comparaison à l'année précédente, objectifs et prévisions :
+après le MVP, ou en Vague 4 pour les derniers.
+
+---
+
 ## Prochaine vague
 
-**Vague 3 — moteur de KPI et tableau de bord.** Toutes les formules sont déjà
-spécifiées dans `docs/MOTEUR-ANALYTICS.md` §5, et l'arithmétique de base
-(`divArrondi`, `moyenne`, `pourcent`, `repartirEnDixiemes`) est écrite et testée
-depuis la Vague 0.
+**Vague 4 — moteur de questions intelligentes.** C'est le **cœur de valeur** du
+produit : ce qui distingue Bizly d'un tableur.
 
-Il manque **les cas de référence issus du métier réel** — formulaire en fin de
-`MOTEUR-ANALYTICS.md` §8. Huit cas synthétiques couvrent déjà les arrondis et
-les fuseaux ; les cas venant du terrain sont ce qui prouvera que le moteur
-calcule ce qu'un commerçant attend.
+La mécanique est spécifiée (`CLAUDE.md` §6) : une règle porte un identifiant, des
+secteurs concernés, un volume minimum, un seuil chiffré, une gravité, et un texte
+en français avec les vrais montants du client. **Le contenu métier reste à
+écrire** — c'est la décision n° 6 du §9, la seule encore ouverte.
+
+Il manque toujours **les cas de référence issus du terrain** (formulaire en fin
+de `MOTEUR-ANALYTICS.md` §8). Les 8 cas synthétiques couvrent les arrondis, les
+fuseaux et les dénominateurs nuls ; ceux venant du métier prouveraient que le
+moteur calcule ce qu'un commerçant attend, et surtout ils orienteraient le
+contenu des règles.
 
 ---
 

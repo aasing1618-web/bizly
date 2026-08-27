@@ -7,6 +7,7 @@ import { creerDepotOperationsMemoire } from "./test-utils/depotOperationsMemoire
 import { creerServiceOperations } from "./modules/operations/service.js";
 import type { EtatBase } from "./db/sonde.js";
 import { definirNiveauJournal } from "./http/journal.js";
+import { creerDepotKpiMemoire } from "./test-utils/depotKpiMemoire.js";
 
 /**
  * Tests du socle HTTP.
@@ -22,6 +23,7 @@ function app(sonderBase: () => Promise<EtatBase>) {
     sonderBase,
     serviceAuth: creerServiceAuth({ depot: creerDepotMemoire() }),
     serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
+    depotKpi: creerDepotKpiMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now() - 5_000,
     production: false,

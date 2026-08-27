@@ -7,6 +7,7 @@ import { fermerPool, pool } from "./db/pool.js";
 import { creerSondeBase } from "./db/sonde.js";
 import { creerDepotPg } from "./modules/auth/depot.js";
 import { creerServiceAuth } from "./modules/auth/service.js";
+import { creerDepotKpi } from "./modules/kpi/depot.js";
 import { creerDepotOperations } from "./modules/operations/depot.js";
 import { creerServiceOperations } from "./modules/operations/service.js";
 import { definirNiveauJournal, detaillerErreur, journal } from "./http/journal.js";
@@ -27,6 +28,7 @@ const app = creerApp({
   sonderBase: creerSondeBase(pool),
   serviceAuth: creerServiceAuth({ depot: creerDepotPg(pool) }),
   serviceOperations: creerServiceOperations(creerDepotOperations(pool)),
+  depotKpi: creerDepotKpi(pool),
   version,
   demarreLe,
   production: enProduction,

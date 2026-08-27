@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReponseSession } from "@bizly/shared";
 import { SectionDepenses } from "./SectionDepenses";
+import { TableauDeBord } from "./TableauDeBord";
 import { SectionVentes } from "./SectionVentes";
 
 export type AccueilProps = {
@@ -8,18 +9,18 @@ export type AccueilProps = {
   deconnecter: () => Promise<void>;
 };
 
-type Onglet = "ventes" | "depenses";
+type Onglet = "tableau" | "ventes" | "depenses";
 
 /**
  * Coquille de l'application connectée.
  *
- * Deux onglets en état local plutôt qu'un routeur : il n'y a que deux écrans,
- * et une vraie navigation adressable arrivera avec le tableau de bord
- * (Vague 3), quand il y aura des URL à partager.
+ * Trois onglets en état local plutôt qu'un routeur. Un vrai routeur deviendra
+ * utile quand il y aura des URL à partager — un tableau de bord sur une période
+ * précise, par exemple. Ce sera la finition (Vague 6).
  */
 export function Accueil({ session, deconnecter }: AccueilProps) {
   const { utilisateur, entreprise } = session;
-  const [onglet, setOnglet] = useState<Onglet>("ventes");
+  const [onglet, setOnglet] = useState<Onglet>("tableau");
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
 
   async function surDeconnexion() {
@@ -56,6 +57,7 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
         <nav className="mx-auto flex max-w-6xl gap-1 px-6" aria-label="Sections">
           {(
             [
+              ["tableau", "Tableau de bord"],
               ["ventes", "Ventes"],
               ["depenses", "Dépenses"],
             ] as const
@@ -78,14 +80,12 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {onglet === "ventes" ? (
-          <SectionVentes devise={entreprise.devise} />
-        ) : (
-          <SectionDepenses devise={entreprise.devise} />
-        )}
+        {onglet === "tableau" && <TableauDeBord devise={entreprise.devise} />}
+        {onglet === "ventes" && <SectionVentes devise={entreprise.devise} />}
+        {onglet === "depenses" && <SectionDepenses devise={entreprise.devise} />}
 
         <p className="mt-8 rounded-2xl border border-dashed border-white/10 p-6 text-sm text-ardoise-400">
-          Tableau de bord et questions intelligentes — Vagues 3 et 4.
+          Questions intelligentes — Vague 4.
         </p>
       </main>
     </div>
