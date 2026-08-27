@@ -4,6 +4,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import pg from "pg";
 import { RACINE_DEPOT, env } from "../config/env.js";
+import { chargerCertificatCa } from "../db/certificat.js";
 import { diagnostiquerConnexion, optionsTls } from "../db/options.js";
 
 /**
@@ -164,7 +165,7 @@ async function principal(): Promise<void> {
 
   const client = new pg.Client({
     connectionString: env.DATABASE_URL,
-    ssl: optionsTls(env.DATABASE_SSL),
+    ssl: optionsTls(env.DATABASE_SSL, chargerCertificatCa(env.DATABASE_CA_CERT, RACINE_DEPOT)),
     connectionTimeoutMillis: 10_000,
     application_name: "bizly-migrate",
   });

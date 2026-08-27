@@ -9,17 +9,31 @@
 
 export type ModeTls = "require" | "no-verify" | "disable";
 
-export type OptionsTls = false | { rejectUnauthorized: boolean };
+export type OptionsTls = false | { rejectUnauthorized: boolean; ca?: string };
 
-/** Traduit le mode TLS déclaré en configuration `ssl` de node-postgres. */
-export function optionsTls(mode: ModeTls): OptionsTls {
+/**
+ * Traduit le mode TLS déclaré en configuration `ssl` de node-postgres.
+ *
+ * `ca` est le certificat racine à faire confiance en plus des autorités
+ * publiques. Supabase présente une chaîne signée par « Supabase Root 2021 CA »,
+ * une autorité PRIVÉE que Node ne connaît pas : sans ce certificat, une
+ * vérification stricte échoue avec `SELF_SIGNED_CERT_IN_CHAIN`.
+ *
+ * La bonne réponse à cette erreur est de fournir le certificat, jamais de
+ * désactiver la vérification : sans authentification du serveur, le
+ * chiffrement ne protège plus d'un interlocuteur qui se ferait passer pour la
+ * base.
+ */
+export function optionsTls(mode: ModeTls, ca?: string | undefined): OptionsTls {
   switch (mode) {
     case "disable":
       return false;
     case "no-verify":
       return { rejectUnauthorized: false };
     case "require":
-      return { rejectUnauthorized: true };
+      return ca === undefined
+        ? { rejectUnauthorized: true }
+        : { rejectUnauthorized: true, ca };
   }
 }
 
@@ -85,7 +99,8 @@ export function diagnostiquerConnexion(
   if (mode === "no-verify") {
     avertissements.push(
       "DATABASE_SSL=no-verify : le certificat du serveur n'est pas vérifié. " +
-        "Mode dépannage — à ne pas laisser en production.",
+        "Mode dépannage — à ne pas laisser en production. Correctif durable : " +
+        "renseigner DATABASE_CA_CERT avec le certificat racine Supabase.",
     );
   }
 

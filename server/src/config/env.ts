@@ -28,6 +28,9 @@ const schema = z.object({
     .min(1, "obligatoire — chaîne du pooler Supabase (port 6543), voir .env.example"),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   DATABASE_SSL: z.enum(["require", "no-verify", "disable"]).default("require"),
+  // Certificat racine PUBLIC de Supabase, sans quoi une verification stricte
+  // echoue : la chaine du pooler est signee par une autorite privee.
+  DATABASE_CA_CERT: z.string().trim().min(1).optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -53,6 +56,20 @@ export function lireEnv(source: Record<string, string | undefined>): Env {
   return resultat.data;
 }
 
-export const env: Env = lireEnv(process.env);
+/**
+ * Une erreur de configuration n'est pas un bug : afficher une pile d'appels
+ * n'aide personne et noie le seul message utile. On sort proprement, avec la
+ * marche à suivre.
+ */
+function lireEnvOuSortir(): Env {
+  try {
+    return lireEnv(process.env);
+  } catch (cause) {
+    process.stderr.write(`\n${cause instanceof Error ? cause.message : String(cause)}\n\n`);
+    process.exit(1);
+  }
+}
+
+export const env: Env = lireEnvOuSortir();
 
 export const enProduction = env.NODE_ENV === "production";

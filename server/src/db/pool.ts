@@ -1,6 +1,7 @@
 import pg from "pg";
-import { env } from "../config/env.js";
+import { RACINE_DEPOT, env } from "../config/env.js";
 import { detaillerErreur, journal } from "../http/journal.js";
+import { chargerCertificatCa } from "./certificat.js";
 import { diagnostiquerConnexion, optionsTls } from "./options.js";
 import "./typesPg.js";
 
@@ -22,7 +23,7 @@ for (const avertissement of diagnostic.avertissements) {
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
   max: env.DATABASE_POOL_MAX,
-  ssl: optionsTls(env.DATABASE_SSL),
+  ssl: optionsTls(env.DATABASE_SSL, chargerCertificatCa(env.DATABASE_CA_CERT, RACINE_DEPOT)),
   connectionTimeoutMillis: 5_000,
   idleTimeoutMillis: 30_000,
   application_name: "bizly",
