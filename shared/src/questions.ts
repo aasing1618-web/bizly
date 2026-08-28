@@ -59,6 +59,13 @@ export type Question = {
   classement?: ElementClassement[];
   /** Compléments chiffrés : nombre de ventes, nouveaux clients… */
   complements?: { libelle: string; valeur: number; unite: UniteClassement | "nombre" }[];
+  /**
+   * La réponse formulée en français, prête à afficher.
+   *
+   * Produite **côté serveur, sans IA** : tout chiffre qui y figure vient du
+   * résultat calculé, par construction. Voir `server/src/domaine/formulation.ts`.
+   */
+  phrase: string;
 };
 
 export type ReponseQuestions = {

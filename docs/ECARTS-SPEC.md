@@ -250,3 +250,206 @@ cache et du repli quand l'API est indisponible.
 Les quatre décisions du §8 de la spécification restent ouvertes : concept de
 projet (BTP), `product_id` obligatoire, seuil d'inactivité à 60 jours,
 période par défaut des meilleurs clients. Aucune ne bloque l'étape 4a.
+
+---
+
+# Partie II — écarts avec le vrai `CLAUDE.md`
+
+> Le `CLAUDE.md` authentique et `GEMINI.md` ont été reçus le **28 août 2026** et
+> remplacent la version reconstruite en Vague 0. Cette partie recense ce que
+> cette substitution change.
+>
+> Bonne nouvelle d'abord : **aucune formule, aucun principe de sécurité, aucune
+> décision d'architecture ne contredit ce qui est construit.** Les écarts
+> portent sur des champs manquants, deux réglages, et un point de méthode que je
+> dois assumer.
+
+---
+
+## A. Ce que je dois assumer
+
+### A.1 J'ai testé contre la base de production — `CLAUDE.md` §9
+
+> « **Base de test séparée de la base de production** avant tout test
+> automatisé. »
+
+Toutes mes vérifications de fin de vague (Vagues 0 à 4b) ont tourné **contre la
+base Supabase réelle**. J'ai systématiquement nettoyé derrière moi et vérifié
+table par table le retour à zéro ligne, et les écritures les plus risquées
+passaient par une transaction annulée — mais la règle dit « base séparée », et
+je ne l'ai pas respectée.
+
+Ce n'est pas anodin : le jour où le projet aura de vraies données, un script de
+vérification qui se trompe de `DELETE` les emporte.
+
+**À faire avant la mise en ligne, et de préférence avant la prochaine vague :**
+un second projet Supabase, `DATABASE_URL_TEST` dans `.env`, et les scripts de
+vérification qui refusent de démarrer si l'URL pointe ailleurs. C'est une
+vingtaine de lignes ; dis-moi si tu veux que je crée le projet de test ou si tu
+préfères le faire.
+
+### A.2 RLS Postgres n'est pas activée — `CLAUDE.md` §9
+
+> « Isolation par `business_id` stricte ; **RLS Postgres** empêche toute lecture
+> croisée. »
+
+Ce qui est en place : chaque requête filtre sur `entreprise_id`, et des **clés
+étrangères composites** `(ressource_id, entreprise_id)` font refuser par la base
+elle-même toute ligne qui traverserait la frontière d'une entreprise. C'est
+vérifié — la base a bien refusé une ligne de vente pointant vers le produit
+d'une autre entreprise (Vague 4a).
+
+Ce qui manque : **`ROW LEVEL SECURITY`**. Aujourd'hui, une requête qui oublierait
+son `WHERE entreprise_id` lirait tout. Rien ne l'empêche au niveau de la base.
+
+La difficulté : RLS s'appuie sur une variable de session (`SET LOCAL
+app.entreprise_id`), et le **pooler en mode transaction ne conserve aucun état
+de session** entre deux requêtes. C'est faisable — `SET LOCAL` dans la même
+transaction que la requête — mais cela impose de passer **toutes** les lectures
+par une transaction explicite. C'est une vague à part entière, pas un ajout.
+
+**Recommandation : la traiter en Vague 5 (« Sécurité, mise en ligne »)**, qui est
+exactement là où ton §10 la place. Je la signale maintenant pour qu'elle ne soit
+pas oubliée.
+
+---
+
+## B. Champs et tables manquants
+
+| Ce que dit `CLAUDE.md` | État | Impact |
+|---|---|---|
+| `businesses.country` (§3, §4) | **absent** | Le pays n'est jamais demandé à l'inscription. Ajout simple : une migration et un champ. |
+| `businesses.plan (free\|pro\|business)` (§4, §12) | **absent** | Le modèle économique n'a aucun support. Champ manuel, changé par l'admin — pas de paiement (§7.4). |
+| `products.active (bool)` (§4) | remplacé par une suppression douce (`supprime_le`) | Équivalent fonctionnel, et l'historique reste daté. À confirmer. |
+| `expenses.description` (§4) | présent sous le nom `note` | Simple différence de nom. |
+| `analysis_questions` (table) (§4) | **le catalogue est dans le code**, pas en base | Voir §B.1 ci-dessous. |
+| `analysis_results` (historique) (§4) | **absent** — marqué « facultatif » | À construire seulement si l'historique des analyses devient un besoin réel. |
+
+### B.1 Le catalogue de questions : en base ou dans le code ?
+
+Ton §4 prévoit une table `analysis_questions (id, key, category, sector, label)`.
+Les 14 questions vivent aujourd'hui **dans le code**, avec leurs formules.
+
+C'est délibéré de ma part et je le signale plutôt que de le corriger en silence :
+une question n'est pas une donnée, c'est **une formule plus un libellé**. Mettre
+le libellé en base sans la formule crée deux sources de vérité qui divergeront ;
+et une question ajoutée en base sans code correspondant ne renverrait rien.
+
+**Une table aurait du sens** si tu veux activer/désactiver des questions par
+entreprise, ou les réordonner sans redéploiement. Dis-moi si c'est le besoin :
+c'est alors une table de **configuration** (`key`, `active`, `ordre`) qui pointe
+vers les formules du code, pas une table qui les remplace.
+
+---
+
+## C. Deux réglages divergents
+
+### C.1 Cookie : `SameSite=Lax` contre `SameSite=Strict` — §7.1
+
+Ton §7 justifie l'origine unique par le besoin d'un cookie `SameSite=Strict`.
+J'ai posé **`Lax`**.
+
+La différence, concrètement : avec `Strict`, un utilisateur qui clique sur un
+lien vers Bizly **depuis un e-mail, une conversation ou un moteur de recherche
+arrive déconnecté**, même s'il a une session valide. Le cookie n'est pas envoyé
+sur une navigation venue d'un autre site. Il doit recharger la page pour que ça
+marche — et la plupart des gens concluent que le service les a déconnectés.
+
+`Lax` envoie le cookie sur une **navigation entrante** (un clic sur un lien),
+mais jamais sur une requête inter-site (formulaire POST, image, script). La
+protection CSRF est équivalente pour ce produit, sans le symptôme.
+
+**Recommandation : garder `Lax`.** Mais c'est ton §7, décision figée — dis-moi
+si tu veux `Strict` et je bascule en une ligne.
+
+### C.2 « 7 jours » contre « semaine » — §5
+
+Ton §5 liste les périodes : aujourd'hui, **7 jours**, mois, trimestre, année,
+personnalisée. J'ai implémenté **`semaine`** = la semaine calendaire ISO
+(lundi → dimanche).
+
+Ce n'est pas la même chose : « 7 jours » est une fenêtre glissante
+`[aujourd'hui − 6 ; aujourd'hui]`, la semaine ISO est ancrée au lundi.
+
+Les deux ont leur usage, et la règle de comparaison diffère (glissante pour
+« 7 jours », ancrée pour « semaine » — `MOTEUR-ANALYTICS.md` §3.4). **Je peux
+ajouter « 7 jours » à côté de « semaine »** : c'est une clé de période de plus,
+une dizaine de lignes. Dis-moi si tu veux les deux ou seulement l'une.
+
+---
+
+## D. Une contradiction entre tes deux documents
+
+**Panier moyen sans aucune vente.**
+
+| Document | Règle |
+|---|---|
+| `CLAUDE.md` §5 | « **0** si aucune vente, jamais une division par zéro qui plante » |
+| `MOTEUR-ANALYTICS.md` §3.4 | « Si nombre de ventes = 0 → **`null`**, jamais une division par zéro qui plante ni un 0 qui casse l'affichage » |
+
+Le code applique **`null`**, avec un `—` à l'écran.
+
+Les deux textes partagent la même intention — ne pas planter — mais divergent
+sur ce qu'on affiche. `CLAUDE.md` fait foi selon son propre en-tête ;
+`MOTEUR-ANALYTICS.md` est plus récent et argumente explicitement contre le zéro
+(« afficher 0 € ferait croire à des ventes à zéro euro »).
+
+**Je n'ai rien changé** — c'est exactement le genre d'arbitrage que ton §5 dit de
+signaler et pas de réinterpréter. Ma préférence va à `null` : un panier moyen de
+0 € est une information fausse, alors qu'un tiret est une information juste.
+**À trancher.**
+
+*(Deuxième contradiction, déjà signalée en partie I : ton `MOTEUR-ANALYTICS.md`
+§3.8 exclut les ventes anonymes des classements clients, tandis que le tableau
+du §7 en liste une. Le code applique la règle du §3.8.)*
+
+---
+
+## E. Ce que le vrai `CLAUDE.md` confirme
+
+Utile à noter, pour ne pas rouvrir ces sujets :
+
+- **Une seule origine, un seul processus** (§7) — conforme.
+- **Moteur côté serveur uniquement** (§7.2) — conforme, et vérifié : aucune
+  formule métier n'est dans le bundle client.
+- **Pas d'ORM, SQL à la main, migrations numérotées** (§7.3) — conforme.
+- **Aucun paiement en ligne dans le MVP** (§7.4) — conforme.
+- **404 et jamais 403** pour une ressource d'une autre entreprise (§9) —
+  conforme, vérifié en lecture, modification et suppression.
+- **Marge nulle si `cost` est null, jamais 100 %** (§5) — conforme.
+- **Questions préconstruites, pas de champ libre vers une IA** (§6) — conforme.
+- **L'IA n'intervient jamais avant l'étape de calcul** (§6) — conforme, et
+  désormais renforcé : voir partie III.
+
+---
+
+# Partie III — la couche d'explication, sans IA
+
+Ton `GEMINI.md` décrit une couche d'explication qui appelle l'API Gemini pour
+reformuler un résultat déjà calculé. Ton `CLAUDE.md` §6 et §10 la qualifient
+deux fois d'**optionnelle**.
+
+Elle est implémentée **sans IA**, en français déterministe, côté serveur
+(`server/src/domaine/formulation.ts`). Chaque question porte désormais un champ
+`phrase`.
+
+**Pourquoi c'est mieux ici qu'un appel à Gemini :**
+
+| | Couche déterministe | Appel Gemini |
+|---|---|---|
+| « Aucun chiffre inventé » | **vrai par construction** — la phrase est assemblée à partir du résultat | vérifié après coup par un test, donc faillible en production |
+| Clé d'API | aucune | `GEMINI_API_KEY` à obtenir, stocker, faire tourner |
+| Coût | nul | par requête |
+| Latence | nulle | un aller-retour réseau par question, soit 14 par écran |
+| Panne du service | impossible | l'écran perd ses phrases |
+| Déterminisme | deux chargements donnent le même texte | non garanti |
+
+**Le garde-fou de ton `GEMINI.md` est écrit quand même** : un test extrait tous
+les nombres de chaque phrase produite et vérifie qu'ils figurent tous dans le
+résultat calculé, avec une contre-épreuve qui prouve que le test détecterait un
+chiffre inventé. Il passe aujourd'hui trivialement — et il sera prêt, tel quel,
+le jour où une reformulation par IA viendra s'ajouter.
+
+Car elle peut s'ajouter : ton §13 place « explications Gemini » dans la feuille
+de route **après** le MVP. Le jour venu, ces phrases resteront le **repli** quand
+l'API est indisponible — ce qui est de toute façon nécessaire.

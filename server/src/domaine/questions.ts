@@ -9,6 +9,7 @@ import {
   type ReponseQuestions,
   type UniteClassement,
 } from "@bizly/shared";
+import { formuler } from "./formulation.js";
 import { abs, divArrondi, enNombreSur, moyenne, pourcent, repartirEnDixiemes } from "./montant.js";
 import type { Comparaison, Periode } from "./periodes.js";
 
@@ -244,9 +245,13 @@ export function repondreAuxQuestions(entrees: EntreesQuestions): ReponseQuestion
     id: IdQuestion,
     question: string,
     formule: string,
-    corps: Omit<Question, "id" | "question" | "formule">,
+    corps: Omit<Question, "id" | "question" | "formule" | "phrase">,
   ): void => {
-    questions.push({ id, question, formule, ...corps });
+    // La phrase est formulée À PARTIR de la réponse elle-même : elle ne peut
+    // donc contenir aucun chiffre qui n'y figure pas. La garantie du §6 de
+    // GEMINI.md est ici vraie par construction, pas seulement testée.
+    const reponse: Question = { id, question, formule, ...corps, phrase: "" };
+    questions.push({ ...reponse, phrase: formuler(reponse, entrees.devise) });
   };
 
   const indisponible = (raison: string) => ({ disponible: false, raison });

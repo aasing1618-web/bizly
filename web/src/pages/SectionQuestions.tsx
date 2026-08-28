@@ -111,13 +111,19 @@ function CarteQuestion({ question, devise }: { question: Question; devise: Devis
     <article className="flex flex-col rounded-2xl border border-white/10 bg-ardoise-900 p-5">
       <h3 className="text-sm font-medium text-slate-200">{question.question}</h3>
 
-      <div className="mt-3 grow">
-        {question.disponible ? (
-          <Reponse question={question} devise={devise} />
-        ) : (
-          // Une donnée manquante s'explique, elle ne se remplace pas par zéro.
-          <p className="text-sm text-ardoise-400">{question.raison}</p>
-        )}
+      {/* La réponse en une phrase, formulée par le serveur. Elle vient AVANT
+          les chiffres : c'est elle qui répond réellement à la question posée,
+          le détail chiffré est là pour vérifier. */}
+      <p
+        className={`mt-2 text-sm leading-relaxed ${
+          question.disponible ? "text-slate-300" : "text-ardoise-400"
+        }`}
+      >
+        {question.phrase}
+      </p>
+
+      <div className="mt-4 grow">
+        {question.disponible && <Reponse question={question} devise={devise} />}
       </div>
 
       {/* Traçabilité : d'un chiffre affiché on remonte à la règle qui l'a produit. */}

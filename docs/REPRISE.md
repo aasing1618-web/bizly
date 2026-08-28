@@ -3,7 +3,14 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 28 août 2026 — Vague 4b (moteur de questions) livrée.**
+**Dernière mise à jour : 28 août 2026 — vrais `CLAUDE.md` / `GEMINI.md` reçus,
+couche d'explication livrée sans IA.**
+
+> ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont désormais les
+> **fichiers authentiques** transmis par le propriétaire, et non plus la
+> reconstruction faite en Vague 0. Les écarts entre eux et le code sont recensés
+> dans `docs/ECARTS-SPEC.md`, **partie II**. Deux points y demandent une action :
+> la base de test séparée de la production, et RLS Postgres.
 
 ---
 
@@ -485,18 +492,68 @@ aucune donnée à interroger.
 
 ---
 
+## Vague 4c — couche d'explication *(livrée, sans IA)*
+
+`CLAUDE.md` §6 et §10 qualifient deux fois la reformulation par IA
+d'**optionnelle**. Elle est donc implémentée **en français déterministe côté
+serveur** — `server/src/domaine/formulation.ts`. Chaque question porte désormais
+un champ `phrase`, affiché avant les chiffres.
+
+### Pourquoi sans IA
+
+| | Couche déterministe | Appel Gemini |
+|---|---|---|
+| « Aucun chiffre inventé » | **vrai par construction** | vérifié après coup, donc faillible en production |
+| Clé d'API | aucune | à obtenir, stocker, faire tourner |
+| Coût / latence | nuls | par requête, ×14 par écran |
+| Panne du service | impossible | l'écran perd ses phrases |
+| Déterminisme | garanti | non |
+
+**Le garde-fou de `GEMINI.md` est écrit quand même** : un test extrait tous les
+nombres de chaque phrase et vérifie qu'ils figurent dans le résultat calculé,
+avec une contre-épreuve prouvant qu'il détecterait un chiffre inventé. Il sera
+prêt tel quel le jour où une reformulation par IA s'ajoutera — `CLAUDE.md` §13
+la place après le MVP, et ces phrases resteront alors le **repli** quand l'API
+est indisponible.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm test` | **323 tests**, 0 échec |
+| **Sur Supabase réel** | **28 vérifications, 0 échec**, dont **31 nombres contrôlés un par un** dans les phrases produites |
+
+Exemple de ce que lit l'utilisateur, sur le cas de référence :
+
+> *Vous êtes en déficit sur cette période : −60,00 €, en baisse de 80,00 €. Ce
+> montant est votre chiffre d'affaires moins vos dépenses ; il ne tient pas
+> compte du coût de revient de vos produits.*
+>
+> *Casquette est le plus rentable, avec 66,7 % de marge. Sur l'ensemble de la
+> période, votre marge est de 138,00 €. 1 produit est exclu de ce calcul, faute
+> de coût de revient renseigné.*
+
+Et sur un compte neuf :
+
+> *Aucune vente sur cette période : le panier moyen n'est pas calculable.*
+
+---
+
 ## Prochaine vague
 
-**Vague 4c — couche d'explication Gemini.** Bloquée sur deux choses :
+Deux chantiers ouverts par le vrai `CLAUDE.md`, détaillés dans
+`docs/ECARTS-SPEC.md` partie II :
 
-1. **`GEMINI_API_KEY` dans `.env`** — vérifié le 28 août : absente.
-2. **Le fichier `GEMINI.md`** — le contrat de la couche d'explication. Il n'est
-   pas dans le dépôt et n'a pas été transmis.
+1. **Base de test séparée de la production** (`CLAUDE.md` §9) — toutes les
+   vérifications de fin de vague ont tourné contre la base réelle. Nettoyées à
+   chaque fois, mais la règle dit « base séparée ». À faire avant d'avoir de
+   vraies données.
+2. **RLS Postgres** (`CLAUDE.md` §9) — l'isolation repose aujourd'hui sur le
+   filtrage applicatif et des clés étrangères composites. RLS manque, et sa mise
+   en place avec le pooler en mode transaction est une vague à part entière :
+   elle relève de la **Vague 5 (Sécurité, mise en ligne)** du §10.
 
-Le garde-fou du §6 de la spécification (« toute valeur numérique de la phrase
-doit déjà exister dans le JSON ») est testable automatiquement : on extrait les
-nombres de la phrase produite et on vérifie qu'ils figurent tous dans l'entrée.
-C'est ainsi qu'il sera implémenté.
+Champs manquants, plus simples : `businesses.country` et `businesses.plan`.
 
 La mécanique est spécifiée (`CLAUDE.md` §6) : une règle porte un identifiant, des
 secteurs concernés, un volume minimum, un seuil chiffré, une gravité, et un texte
