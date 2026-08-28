@@ -161,20 +161,31 @@ suivant ou précédent. C'est la première chose qu'un commerçant repère.
 | `annee` | 1er janvier → 1er janvier suivant |
 | `personnalisee` | deux dates fournies, converties en `[debut 00:00, fin+1j 00:00[` |
 
-### 3.4 Période de comparaison
+### 3.4 Période de comparaison — **deux règles, selon l'ancrage**
 
-Chaque KPI peut être comparé à la période précédente.
+Arbitrage du 28 août 2026 (spécification métier §2). Il y a **deux** règles, pas
+une, parce qu'il y a deux questions différentes.
 
-| Période courante | Période de comparaison |
-|---|---|
-| `jour` | la veille |
-| `semaine` | la semaine calendaire précédente |
-| `mois` | le **mois calendaire** précédent (pas « 30 jours avant ») |
-| `trimestre` / `annee` | le précédent, calendaire |
-| `personnalisee` (N jours) | les N jours immédiatement antérieurs |
+| Période courante | Comparaison | Pourquoi |
+|---|---|---|
+| `mois`, `trimestre`, `annee` — **ancrées au calendrier** | **même position** depuis le début de l'unité précédente. Le 8 août → **1–8 juillet** | « vs le mois dernier » veut dire, pour un commerçant, « les mêmes premiers jours du mois d'avant » |
+| `jour`, `semaine`, `personnalisee` — **non ancrées** | les **N jours immédiatement antérieurs** | une fenêtre glissante répond à « est-ce que ça accélère par rapport à juste avant ? » |
 
-Mois calendaire et pas 30 jours : février contre janvier serait faussé de 3 jours,
-soit ~10 % de CA d'écart artificiel.
+Comparer un mois à date aux **derniers** jours du mois précédent répondrait à une
+autre question que celle posée. Et comparer à 30 jours fixes fausserait février
+contre janvier de trois jours, soit environ 10 % de CA d'écart artificiel.
+
+### 3.4 bis — une période en cours s'arrête à aujourd'hui
+
+`mois`, `trimestre` et `annee` en cours sont bornés à **aujourd'hui**, pas à la
+fin de l'unité calendaire : « ce mois » vaut le **mois à date**.
+
+Sans cela, la série journalière traînerait des jours futurs à zéro et l'en-tête
+annoncerait « du 1er au 31 août » un 8 août — deux façons de faire croire à une
+chute d'activité qui n'existe pas.
+
+Une période **personnalisée n'est jamais tronquée** : l'utilisateur a choisi ses
+bornes, on ne les corrige pas dans son dos.
 
 ### 3.5 Comparer un mois en cours à un mois complet — **tranché : option A**
 

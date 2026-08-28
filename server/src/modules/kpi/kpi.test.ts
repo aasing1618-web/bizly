@@ -9,6 +9,7 @@ import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMem
 import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "../operations/service.js";
 import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
+import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * `GET /api/tableau-de-bord`, de bout en bout en HTTP.
@@ -39,6 +40,7 @@ beforeEach(async () => {
     serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi,
     depotCatalogue,
+    depotQuestions: creerDepotQuestionsMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

@@ -817,3 +817,128 @@ Les indicateurs eux-mêmes (marge, classements clients, inactifs) arrivent en
 | Historique des prix du catalogue | La photographie sur la ligne de vente suffit à l'historique. |
 | Import du catalogue par fichier | Après le MVP. |
 | Fusion de doublons clients | À prévoir si la saisie libre en crée. |
+
+---
+
+## §6. Vague 4b — moteur de questions intelligentes *(contrat arrêté)*
+
+Les 14 questions du §4 de la spécification métier, chacune adossée à **sa**
+formule, jamais à une interprétation libre. Session requise.
+
+### 6.1 `GET /api/questions`
+
+Mêmes paramètres que le tableau de bord : `periode`, `reference`, `du`, `au`.
+
+```jsonc
+{
+  "periode": { … },        // identique à /api/tableau-de-bord
+  "comparaison": { … },
+  "devise": { "code": "EUR", "decimales": 2 },
+  "secteur": "commerce_detail",
+  "questions": [
+    {
+      "id": "combien_ai_je_gagne",
+      "question": "Combien ai-je gagné sur la période ?",
+      "formule": "§3.1",
+      "disponible": true,
+      "indicateur": { "valeur": 31500, "evolution_pourcent": 125,
+                      "evolution_montant": 3500, "base_nulle": false }
+    },
+    {
+      "id": "produit_le_plus_rentable",
+      "question": "Quel produit est le plus rentable ?",
+      "formule": "§3.6",
+      "disponible": false,
+      "raison": "Aucun produit n'a de coût de revient renseigné."
+    }
+  ]
+}
+```
+
+Chaque question porte **`formule`**, le renvoi vers le paragraphe de
+`docs/MOTEUR-ANALYTICS.md` qui la définit. C'est la traçabilité : on peut
+remonter d'un chiffre affiché à la règle qui l'a produit, sans lire le code.
+
+### 6.2 Une question sans données répond « indisponible », jamais zéro
+
+`disponible: false` + une **raison en français**, destinée à l'utilisateur.
+
+C'est le point le plus important de cette vague. Une entreprise qui n'a renseigné
+aucun coût ne doit pas lire « produit le plus rentable : T-shirt, 0 % » — elle
+doit lire *« aucun produit n'a de coût de revient renseigné »*, et savoir quoi
+faire pour obtenir la réponse. Un indicateur faux coûte plus cher qu'un
+indicateur absent.
+
+Les cinq raisons possibles :
+
+| Raison | Question concernée |
+|---|---|
+| Aucune vente sur la période | classements produits, panier moyen |
+| Aucune dépense sur la période | répartition des dépenses |
+| Aucune vente rattachée à un produit du catalogue | classements produits |
+| Aucun produit n'a de coût de revient renseigné | produit le plus rentable |
+| Aucune vente rattachée à un client | meilleurs clients |
+
+### 6.3 Les 14 questions
+
+| `id` | Question | Formule | Forme de réponse |
+|---|---|---|---|
+| `combien_ai_je_gagne` | Combien ai-je gagné ? | §3.1 | indicateur |
+| `benefice_estime` | Quel est mon bénéfice estimé ? | §3.3 | indicateur |
+| `ou_je_depense_le_plus` | Où est-ce que je dépense le plus ? | §3.9 | classement |
+| `depenses_augmentent` | Mes dépenses augmentent-elles ? | §3.5 sur §3.2 | indicateur |
+| `produit_le_plus_vendu` | Quel produit se vend le plus ? | §3.7 (quantité) | classement |
+| `produit_le_plus_de_ca` | Quel produit génère le plus de CA ? | §3.7 (CA) | classement |
+| `ventes_progressent` | Mes ventes progressent-elles ? | §3.5 sur §3.1 | indicateur + effectif |
+| `panier_moyen` | Quel est mon panier moyen ? | §3.4 | indicateur |
+| `meilleurs_clients` | Qui sont mes meilleurs clients ? | §3.8 | classement |
+| `combien_de_clients` | Combien de clients ai-je ? | §3.8 | nombre + nouveaux |
+| `clients_inactifs` | Quels clients n'ont pas acheté récemment ? | §3.8 | classement (jours) |
+| `produit_le_plus_rentable` | Quel produit est le plus rentable ? | §3.6 | classement (marge) |
+| `produits_les_moins_vendus` | Quels produits se vendent le moins ? | §3.7 croissant | classement, **tous les ex æquo** |
+| `categorie_la_plus_rentable` | Quelle catégorie génère le plus de revenus ? | §3.7 par catégorie | classement |
+
+### 6.4 Égalités
+
+Règle unique du §3.7, appliquée à **tous** les classements :
+
+- départage par **ordre alphabétique** du libellé ;
+- une question à réponse unique (« quel est… ») rend le premier, avec
+  `ex_aequo: true` sur chaque élément à égalité avec lui ;
+- une question en liste (« quels sont les moins vendus ») rend **tous** les ex
+  æquo, jamais un seul.
+
+C'est pourquoi « quels produits se vendent le moins » rend *Pull et Sac*, et non
+l'un des deux.
+
+### 6.5 Vocabulaire par secteur
+
+Même moteur, mots différents — spécification métier §4 :
+
+| Secteur | « produit » devient |
+|---|---|
+| `restauration` | **plat** |
+| `services_pro` | **prestation** |
+| tous les autres | produit |
+
+Seuls les **libellés de questions** changent. Aucune formule, aucun seuil, aucun
+classement n'est modifié : un moteur par secteur deviendrait impossible à tester.
+
+### 6.6 Seuils
+
+| Seuil | Valeur | Statut |
+|---|---|---|
+| Client inactif | **60 jours** sans achat | §8 de la spécification : à confirmer, à rendre paramétrable par secteur |
+| Taille des classements | 5 éléments | tous les ex æquo du dernier rang sont conservés |
+
+Le compteur d'inactivité se mesure depuis **aujourd'hui**, pas depuis la fin de
+la période analysée : « n'a pas acheté récemment » est une question sur le
+présent, pas sur la fenêtre consultée.
+
+### 6.7 Hors périmètre
+
+| Exclu | Pourquoi |
+|---|---|
+| Reformulation par IA | Vague 4c — attend `GEMINI_API_KEY` et le contrat `GEMINI.md`. |
+| Question « quel projet rapporte le plus » (BTP) | Aucune table `projets` : §8 de la spécification, à trancher avant de coder. |
+| Questions en langage libre | Le moteur répond à un **catalogue fixe** de questions. Interpréter une question libre relèverait de l'IA, et sortirait du principe « l'IA ne calcule jamais ». |

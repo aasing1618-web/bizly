@@ -10,6 +10,7 @@ import { creerServiceAuth } from "./modules/auth/service.js";
 import { creerDepotCatalogue } from "./modules/catalogue/depot.js";
 import { creerDepotKpi } from "./modules/kpi/depot.js";
 import { creerDepotOperations } from "./modules/operations/depot.js";
+import { creerDepotQuestions } from "./modules/questions/depot.js";
 import { creerServiceOperations } from "./modules/operations/service.js";
 import { definirNiveauJournal, detaillerErreur, journal } from "./http/journal.js";
 
@@ -33,6 +34,7 @@ const app = creerApp({
   serviceOperations: creerServiceOperations(creerDepotOperations(pool), depotCatalogue),
   depotKpi: creerDepotKpi(pool),
   depotCatalogue,
+  depotQuestions: creerDepotQuestions(pool),
   version,
   demarreLe,
   production: enProduction,

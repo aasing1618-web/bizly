@@ -9,6 +9,7 @@ import { creerServiceOperations } from "../../modules/operations/service.js";
 import { creerServiceAuth } from "./service.js";
 import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
 import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
+import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * Tests de bout en bout de l'authentification, sans Postgres.
@@ -30,6 +31,7 @@ function monter(depot: DepotMemoire) {
     serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
     depotCatalogue,
+    depotQuestions: creerDepotQuestionsMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

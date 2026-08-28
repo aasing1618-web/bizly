@@ -12,6 +12,7 @@ import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "./service.js";
 import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
 import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
+import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * Ventes et dépenses, de bout en bout en HTTP, sans Postgres.
@@ -41,6 +42,7 @@ beforeEach(() => {
     serviceOperations: creerServiceOperations(depotOps, depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
     depotCatalogue,
+    depotQuestions: creerDepotQuestionsMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

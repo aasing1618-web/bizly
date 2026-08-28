@@ -3,7 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — Vague 4a (catalogue et clients) livrée.**
+**Dernière mise à jour : 28 août 2026 — Vague 4b (moteur de questions) livrée.**
 
 ---
 
@@ -422,17 +422,81 @@ inactifs. **Les indicateurs eux-mêmes restent à écrire — c'est la Vague 4b.
 
 ---
 
+## Vague 4b — moteur de questions intelligentes *(livrée et vérifiée)*
+
+Contrat : `docs/API-CONTRACT.md` §6. Les **14 questions** du §4 de la
+spécification métier, chacune adossée à sa formule.
+
+| Livrable | Où |
+|---|---|
+| **Moteur de réponses, fonction pure** | `server/src/domaine/questions.ts` |
+| Agrégats SQL | `server/src/modules/questions/depot.ts` |
+| Route `GET /api/questions` | `server/src/modules/questions/routes.ts` |
+| Écran | `web/src/pages/SectionQuestions.tsx` |
+
+**Aucune migration** : la Vague 4a avait posé les données manquantes.
+
+### La règle qui gouverne tout le moteur
+
+**Une question sans données répond « indisponible » avec sa raison, jamais
+zéro.** Une entreprise qui n'a renseigné aucun coût ne lit pas « produit le plus
+rentable : T-shirt, 0 % » mais *« aucun produit vendu n'a de coût de revient
+renseigné »*, et sait quoi faire pour obtenir la réponse.
+
+Chaque réponse porte aussi son **renvoi de formule** (`§3.6`, `§3.9`…) : on
+remonte d'un chiffre affiché à la règle qui l'a produit, sans lire le code.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **307 tests**, 0 échec (265 auparavant, 42 ajoutés) |
+| **Cas de référence §7 saisi par l'API puis relu** | **36 vérifications, 0 échec** |
+
+Les 14 réponses, sur la vraie base : CA 315,00 € (+12,5 %), bénéfice −60,00 €
+avec un **écart de −80,00 € et aucun pourcentage** (signe traversé), panier
+31,50 € (+1,3 %), Loyer 53,3 %, Casquette la plus vendue (5), Pull le plus de CA
+(90 €), **Casquette la plus rentable à 66,7 % avec le Pull exclu**, marge globale
+138,00 €, **Pull ET Sac ex æquo** aux moins vendus, Vêtements 170 € (54,0 %),
+Awa Diop 165 € en tête sans qu'aucun « anonyme » n'apparaisse, 4 clients dont
+1 nouveau, et Ibrahima Ba inactif.
+
+### Deux défauts trouvés pendant les tests
+
+**`sum()` sur un `bigint` rend un `numeric` en Postgres**, que node-postgres
+livre sous forme de **chaîne**. Les comparaisons coercent en silence — le défaut
+restait donc invisible jusqu'à la première soustraction, qui levait « Cannot mix
+BigInt and other types ». Chaque `sum()` est désormais recastée en `::bigint`,
+dans le moteur de questions **et** dans celui du tableau de bord, où le même
+piège dormait.
+
+**Le vocabulaire sectoriel cassait les accords.** « Quel {nom} est le plus
+rentable ? » donnait « Quel prestation est le plus rentable ? ». Les libellés
+sont maintenant écrits **en entier** par secteur, ce qui supprime la classe
+entière de fautes.
+
+### Ce qui reste ouvert
+
+Les seuils du §8 de la spécification : inactivité à **60 jours** (à confirmer,
+à rendre paramétrable par secteur), période par défaut des meilleurs clients, et
+le concept de « projet » pour le BTP — sans table `projets`, la question n'a
+aucune donnée à interroger.
+
+---
+
 ## Prochaine vague
 
-**Vague 4b — les 14 questions du moteur**, chacune adossée à sa formule, testées
-sur le cas de référence. Puis **4c**, la couche d'explication Gemini, qui attend
-`GEMINI_API_KEY` et le fichier `GEMINI.md`.
+**Vague 4c — couche d'explication Gemini.** Bloquée sur deux choses :
 
-Rappel de ce qui reste ouvert dans `docs/ECARTS-SPEC.md` : la règle de période
-précédente (calendaire ou glissante) est le seul arbitrage qui change ce que
-voit l'utilisateur.
+1. **`GEMINI_API_KEY` dans `.env`** — vérifié le 28 août : absente.
+2. **Le fichier `GEMINI.md`** — le contrat de la couche d'explication. Il n'est
+   pas dans le dépôt et n'a pas été transmis.
 
-C'est le **cœur de valeur** du produit : ce qui distingue Bizly d'un tableur.
+Le garde-fou du §6 de la spécification (« toute valeur numérique de la phrase
+doit déjà exister dans le JSON ») est testable automatiquement : on extrait les
+nombres de la phrase produite et on vérifie qu'ils figurent tous dans l'entrée.
+C'est ainsi qu'il sera implémenté.
 
 La mécanique est spécifiée (`CLAUDE.md` §6) : une règle porte un identifiant, des
 secteurs concernés, un volume minimum, un seuil chiffré, une gravité, et un texte

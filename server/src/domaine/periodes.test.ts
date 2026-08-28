@@ -51,14 +51,38 @@ describe("arithmétique de jours locaux", () => {
 describe("construirePeriode", () => {
   const maintenant = aParis("2026-05-08T10:00:00Z");
 
-  it("borne un mois du 1er au dernier jour", () => {
-    const periode = construirePeriode({ cle: "mois", reference: "2026-05-15" }, PARIS, maintenant);
+  it("borne un mois TERMINÉ du 1er au dernier jour", () => {
+    const enJuin = aParis("2026-06-20T10:00:00Z");
+    const periode = construirePeriode({ cle: "mois", reference: "2026-05-15" }, PARIS, enJuin);
 
     expect(periode.debut_local).toBe("2026-05-01");
     expect(periode.fin_local).toBe("2026-05-31");
     expect(periode.debut.toISOString()).toBe("2026-04-30T22:00:00.000Z");
     // Borne haute EXCLUE : minuit du 1er juin.
     expect(periode.fin.toISOString()).toBe("2026-05-31T22:00:00.000Z");
+  });
+
+  it("arrête un mois EN COURS à aujourd'hui — le mois à date", () => {
+    // Spécification métier §2 : « Mois = [1er du mois en cours ; aujourd'hui] ».
+    // Aller jusqu'au 31 traînerait des jours futurs à zéro dans la série et
+    // afficherait « du 1er au 31 mai » un 8 mai.
+    const periode = construirePeriode({ cle: "mois" }, PARIS, maintenant);
+
+    expect(periode.debut_local).toBe("2026-05-01");
+    expect(periode.fin_local).toBe("2026-05-08");
+    expect(periode.en_cours).toBe(true);
+  });
+
+  it("ne tronque JAMAIS une période personnalisée", () => {
+    // L'utilisateur a choisi ses bornes : on ne les corrige pas dans son dos.
+    const periode = construirePeriode(
+      { cle: "personnalisee", du: "2026-05-01", au: "2026-05-31" },
+      PARIS,
+      maintenant,
+    );
+
+    expect(periode.fin_local).toBe("2026-05-31");
+    expect(periode.en_cours).toBe(true);
   });
 
   it("fait commencer la semaine un lundi", () => {
@@ -69,19 +93,43 @@ describe("construirePeriode", () => {
     expect(periode.fin_local).toBe("2026-05-17");
   });
 
-  it("borne un trimestre et une année", () => {
-    const trimestre = construirePeriode({ cle: "trimestre", reference: "2026-05-15" }, PARIS, maintenant);
+  it("borne un trimestre et une année terminés", () => {
+    const en2027 = aParis("2027-03-01T10:00:00Z");
+    const trimestre = construirePeriode({ cle: "trimestre", reference: "2026-05-15" }, PARIS, en2027);
     expect(trimestre.debut_local).toBe("2026-04-01");
     expect(trimestre.fin_local).toBe("2026-06-30");
 
-    const annee = construirePeriode({ cle: "annee", reference: "2026-05-15" }, PARIS, maintenant);
+    const annee = construirePeriode({ cle: "annee", reference: "2026-05-15" }, PARIS, en2027);
     expect(annee.debut_local).toBe("2026-01-01");
     expect(annee.fin_local).toBe("2026-12-31");
+  });
+
+  it("arrête à aujourd'hui un trimestre et une année en cours", () => {
+    const trimestre = construirePeriode({ cle: "trimestre" }, PARIS, maintenant);
+    expect(trimestre.debut_local).toBe("2026-04-01");
+    expect(trimestre.fin_local).toBe("2026-05-08");
+
+    const annee = construirePeriode({ cle: "annee" }, PARIS, maintenant);
+    expect(annee.debut_local).toBe("2026-01-01");
+    expect(annee.fin_local).toBe("2026-05-08");
   });
 
   it("traite un mois de février bissextile", () => {
     const periode = construirePeriode({ cle: "mois", reference: "2028-02-10" }, PARIS, maintenant);
     expect(periode.fin_local).toBe("2028-02-29");
+  });
+
+  it("applique la règle ANCRÉE de la spécification métier §2", () => {
+    // Le 8 août, « ce mois » vaut 1–8 août, comparé au 1–8 JUILLET — les mêmes
+    // premiers jours du mois précédent, pas les huit derniers jours de juillet.
+    const le8aout = aParis("2026-08-08T10:00:00Z");
+    const periode = construirePeriode({ cle: "mois" }, PARIS, le8aout);
+    const comparaison = construireComparaison(periode, le8aout);
+
+    expect(periode.debut_local).toBe("2026-08-01");
+    expect(periode.fin_local).toBe("2026-08-08");
+    expect(comparaison.debut_local).toBe("2026-07-01");
+    expect(comparaison.fin_local).toBe("2026-07-08");
   });
 
   it("prend une période personnalisée bornes incluses", () => {
@@ -202,6 +250,12 @@ describe("joursDe", () => {
 
     const octobre = construirePeriode({ cle: "mois", reference: "2026-10-15" }, PARIS, maintenant);
     expect(joursDe(octobre)).toHaveLength(31);
+  });
+
+  it("s'arrête à aujourd'hui pour une période en cours", () => {
+    const maintenant = aParis("2026-05-08T10:00:00Z");
+    const periode = construirePeriode({ cle: "mois" }, PARIS, maintenant);
+    expect(joursDe(periode)).toHaveLength(8);
   });
 
   it("rend un seul jour pour une période d'un jour", () => {

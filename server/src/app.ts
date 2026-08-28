@@ -13,6 +13,8 @@ import type { DepotCatalogue } from "./modules/catalogue/depot.js";
 import { creerRouteurKpi } from "./modules/kpi/routes.js";
 import type { DepotKpi } from "./modules/kpi/depot.js";
 import { creerRouteurOperations } from "./modules/operations/routes.js";
+import { creerRouteurQuestions } from "./modules/questions/routes.js";
+import type { DepotQuestions } from "./modules/questions/depot.js";
 import type { ServiceOperations } from "./modules/operations/service.js";
 import { creerRouteurSante } from "./routes/health.js";
 import { monterStatiques } from "./statiques.js";
@@ -23,6 +25,7 @@ export type DependancesApp = {
   serviceOperations: ServiceOperations;
   depotKpi: DepotKpi;
   depotCatalogue: DepotCatalogue;
+  depotQuestions: DepotQuestions;
   version: string;
   demarreLe: number;
   production: boolean;
@@ -83,6 +86,7 @@ export function creerApp(deps: DependancesApp): Express {
     creerRouteurCatalogue({ serviceAuth: deps.serviceAuth, depot: deps.depotCatalogue }),
   );
   api.use(creerRouteurKpi({ serviceAuth: deps.serviceAuth, depot: deps.depotKpi }));
+  api.use(creerRouteurQuestions({ serviceAuth: deps.serviceAuth, depot: deps.depotQuestions }));
   api.use(routeApiIntrouvable);
 
   app.use("/api", api);

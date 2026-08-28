@@ -109,21 +109,31 @@ arithmétique entière :
 
 ## 3. Contradictions à trancher — **non modifiées**
 
-### Écart n° 3 — période précédente
+### ~~Écart n° 3 — période précédente~~ **RÉSOLU le 28 août 2026**
 
-| | Règle |
+Arbitrage rendu : **le code avait raison** pour les périodes ancrées au
+calendrier. La spécification métier §2 distingue désormais deux cas, et c'est
+exactement ce que le code faisait déjà :
+
+| Période | Comparaison |
 |---|---|
-| **Spécification §2** | même nombre de jours, se terminant la veille du premier jour de la période |
-| **Code** | période **calendaire** précédente pour `mois`/`semaine`/`trimestre`/`annee` ; pour une période **personnalisée**, les N jours antérieurs — soit exactement votre règle |
+| `mois`, `trimestre`, `annee` | même position depuis le début de l'unité précédente — le 8 août → **1–8 juillet** |
+| `jour`, `semaine`, `personnalisee` | les **N jours immédiatement antérieurs** |
 
-Concrètement, le 8 août :
+Vérifié par un test dédié (`periodes.test.ts`, « applique la règle ANCRÉE de la
+spécification métier §2 »).
 
-- votre règle → « ce mois » = 1–8 août, comparé au **24–31 juillet** ;
-- le code → 1–8 août, comparé au **1–8 juillet**, avec l'étiquette « à date ».
+**Un point restait divergent, et il est corrigé** : le §2 borne une période en
+cours à **aujourd'hui**, alors que le code prenait l'unité calendaire entière.
+« Ce mois » vaut donc désormais le mois **à date** — un 8 août, du 1er au 8, et
+non du 1er au 31. Sans quoi la série journalière traînait des jours futurs à
+zéro et l'en-tête annonçait une période plus longue que la réalité.
 
-Aucune des deux n'est fausse. La vôtre supprime le biais 28 / 31 jours ; la
-mienne compare la même position dans le mois, ce qui capte la saisonnalité
-intra-mensuelle (un commerce qui encaisse en début de mois). **À trancher.**
+Une période **personnalisée n'est jamais tronquée** : les bornes sont celles que
+l'utilisateur a choisies.
+
+Aucun effet sur le cas de référence du §7, qui utilise une période
+personnalisée — confirmé par `casReference.test.ts`, toujours au vert.
 
 ### Écart n° 4 — fuseaux horaires
 

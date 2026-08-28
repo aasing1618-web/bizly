@@ -205,6 +205,25 @@ export function construirePeriode(
   }
 
   const debut = debutDeJourLocal(debutLocal, fuseau);
+  const instant = maintenant.getTime();
+  const enCours =
+    instant >= debut.getTime() && instant < debutDeJourLocal(finLocaleExclue, fuseau).getTime();
+
+  /**
+   * Une période **ancrée au calendrier** encore en cours s'arrête à aujourd'hui,
+   * pas à la fin du mois : « ce mois » vaut le mois **à date**.
+   *
+   * Sans cette troncature, la série journalière traînerait des jours futurs à
+   * zéro et l'en-tête annoncerait « du 1er au 31 août » un 8 août — deux
+   * façons de faire croire à une chute d'activité qui n'existe pas.
+   *
+   * Une période **personnalisée** n'est jamais tronquée : l'utilisateur a
+   * choisi ses bornes, on ne les corrige pas dans son dos.
+   */
+  if (enCours && demande.cle !== "personnalisee") {
+    finLocaleExclue = ajouterJoursLocal(aujourdhui, 1, fuseau);
+  }
+
   const fin = debutDeJourLocal(finLocaleExclue, fuseau);
   const finLocale = ajouterJoursLocal(finLocaleExclue, -1, fuseau);
 
@@ -213,7 +232,6 @@ export function construirePeriode(
     throw new PeriodeInvalide(`La période ne peut pas dépasser ${DUREE_MAX_JOURS} jours.`);
   }
 
-  const instant = maintenant.getTime();
   return {
     cle: demande.cle,
     debut,
@@ -221,7 +239,7 @@ export function construirePeriode(
     debut_local: debutLocal,
     fin_local: finLocale,
     fuseau,
-    en_cours: instant >= debut.getTime() && instant < fin.getTime(),
+    en_cours: enCours,
   };
 }
 

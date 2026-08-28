@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReponseSession } from "@bizly/shared";
 import { SectionCatalogue } from "./SectionCatalogue";
 import { SectionDepenses } from "./SectionDepenses";
+import { SectionQuestions } from "./SectionQuestions";
 import { TableauDeBord } from "./TableauDeBord";
 import { SectionVentes } from "./SectionVentes";
 
@@ -10,7 +11,7 @@ export type AccueilProps = {
   deconnecter: () => Promise<void>;
 };
 
-type Onglet = "tableau" | "ventes" | "depenses" | "catalogue";
+type Onglet = "tableau" | "questions" | "ventes" | "depenses" | "catalogue";
 
 /**
  * Coquille de l'application connectée.
@@ -59,6 +60,7 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
           {(
             [
               ["tableau", "Tableau de bord"],
+              ["questions", "Questions"],
               ["ventes", "Ventes"],
               ["depenses", "Dépenses"],
               ["catalogue", "Catalogue"],
@@ -83,13 +85,10 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {onglet === "tableau" && <TableauDeBord devise={entreprise.devise} />}
+        {onglet === "questions" && <SectionQuestions devise={entreprise.devise} />}
         {onglet === "ventes" && <SectionVentes devise={entreprise.devise} />}
         {onglet === "depenses" && <SectionDepenses devise={entreprise.devise} />}
         {onglet === "catalogue" && <SectionCatalogue devise={entreprise.devise} />}
-
-        <p className="mt-8 rounded-2xl border border-dashed border-white/10 p-6 text-sm text-ardoise-400">
-          Questions intelligentes — Vague 4.
-        </p>
       </main>
     </div>
   );

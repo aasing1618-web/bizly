@@ -4,3 +4,4 @@ export * from "./catalogue.js";
 export * from "./kpi.js";
 export * from "./montant.js";
 export * from "./operations.js";
+export * from "./questions.js";

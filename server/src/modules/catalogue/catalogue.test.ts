@@ -10,6 +10,7 @@ import { creerDepotMemoire, type DepotMemoire } from "../../test-utils/depotMemo
 import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
 import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "../operations/service.js";
+import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * Catalogue de produits et fichier clients, de bout en bout en HTTP.
@@ -36,6 +37,7 @@ beforeEach(() => {
     serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
     depotCatalogue,
+    depotQuestions: creerDepotQuestionsMemoire(),
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

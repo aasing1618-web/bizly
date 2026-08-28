@@ -9,6 +9,13 @@ import type { DepenseAgregable, ProduitAgrege, VenteAgregable } from "../../doma
  * et l'index partiel `ventes_kpi_idx` correspond exactement à ce prédicat. Le
  * **calcul** est fait dans `domaine/kpi.ts`, où il se teste au centime.
  *
+ *
+ * **Chaque `sum()` est explicitement recastée en `::bigint`.** Postgres rend
+ * un `numeric` quand on somme des `bigint`, et node-postgres livre un
+ * `numeric` sous forme de CHAINE. La premiere soustraction leve alors
+ * « Cannot mix BigInt and other types » — alors que les comparaisons, elles,
+ * coercent en silence : le defaut se cache jusqu'au premier calcul.
+ *
  * Seule exception : `topProduits` est agrégé en SQL. Remonter toutes les lignes
  * de vente d'une année pour les sommer en mémoire serait absurde, et
  * `GROUP BY` est précisément le travail d'une base.
@@ -96,7 +103,7 @@ export function creerDepotKpi(pool: Pool): DepotKpi {
           pool.query<{ libelle: string; quantite: string; montant: bigint }>(
             `SELECT l.libelle,
                     sum(l.quantite)::text  AS quantite,
-                    sum(l.montant_mineur)  AS montant
+                    sum(l.montant_mineur)::bigint AS montant
                FROM lignes_vente l
                JOIN ventes v ON v.id = l.vente_id
               WHERE v.entreprise_id = $1

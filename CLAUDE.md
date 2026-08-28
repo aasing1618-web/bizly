@@ -220,7 +220,7 @@ propriétaire du projet.
 | 2 | CRUD ventes + dépenses | livrée et vérifiée |
 | 3 | Moteur KPI + dashboard | livrée et vérifiée |
 | 4a | Catalogue produits + clients | livrée et vérifiée |
-| 4b | Les 14 questions du moteur | à ouvrir |
-| 4c | Couche d'explication Gemini | attend la clé API |
+| 4b | Les 14 questions du moteur | livrée et vérifiée |
+| 4c | Couche d'explication Gemini | attend `GEMINI_API_KEY` + `GEMINI.md` |
 | 5 | Admin plateforme | |
 | 6 | Finition UI, déploiement | |
