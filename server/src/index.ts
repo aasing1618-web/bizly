@@ -7,6 +7,7 @@ import { fermerPool, pool } from "./db/pool.js";
 import { creerSondeBase } from "./db/sonde.js";
 import { creerDepotPg } from "./modules/auth/depot.js";
 import { creerServiceAuth } from "./modules/auth/service.js";
+import { creerDepotCatalogue } from "./modules/catalogue/depot.js";
 import { creerDepotKpi } from "./modules/kpi/depot.js";
 import { creerDepotOperations } from "./modules/operations/depot.js";
 import { creerServiceOperations } from "./modules/operations/service.js";
@@ -24,11 +25,14 @@ definirNiveauJournal(enProduction ? "info" : "debug");
 const demarreLe = Date.now();
 const version = lireVersion();
 
+const depotCatalogue = creerDepotCatalogue(pool);
+
 const app = creerApp({
   sonderBase: creerSondeBase(pool),
   serviceAuth: creerServiceAuth({ depot: creerDepotPg(pool) }),
-  serviceOperations: creerServiceOperations(creerDepotOperations(pool)),
+  serviceOperations: creerServiceOperations(creerDepotOperations(pool), depotCatalogue),
   depotKpi: creerDepotKpi(pool),
+  depotCatalogue,
   version,
   demarreLe,
   production: enProduction,

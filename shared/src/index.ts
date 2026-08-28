@@ -1,5 +1,6 @@
 export * from "./api.js";
 export * from "./auth.js";
+export * from "./catalogue.js";
 export * from "./kpi.js";
 export * from "./montant.js";
 export * from "./operations.js";

@@ -8,6 +8,7 @@ import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMem
 import { creerServiceOperations } from "../../modules/operations/service.js";
 import { creerServiceAuth } from "./service.js";
 import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
+import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
 
 /**
  * Tests de bout en bout de l'authentification, sans Postgres.
@@ -21,11 +22,14 @@ import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
 const MOT_DE_PASSE = "correct-cheval-pile-agrafe";
 
 function monter(depot: DepotMemoire) {
+  const depotCatalogue = creerDepotCatalogueMemoire();
+
   return creerApp({
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
+    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
+    depotCatalogue,
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

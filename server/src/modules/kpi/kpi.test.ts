@@ -8,6 +8,7 @@ import { creerDepotKpiMemoire, type DepotKpiMemoire } from "../../test-utils/dep
 import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
 import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "../operations/service.js";
+import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
 
 /**
  * `GET /api/tableau-de-bord`, de bout en bout en HTTP.
@@ -31,11 +32,13 @@ afterAll(() => definirNiveauJournal("info"));
 beforeEach(async () => {
   depotAuth = creerDepotMemoire();
   depotKpi = creerDepotKpiMemoire();
+  const depotCatalogue = creerDepotCatalogueMemoire();
   app = creerApp({
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot: depotAuth }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
+    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi,
+    depotCatalogue,
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

@@ -50,6 +50,15 @@ type DatesOperation = {
 export type LigneVente = {
   id: string;
   rang: number;
+  /**
+   * Produit du catalogue, quand la ligne en désigne un.
+   *
+   * Sert aux **regroupements** (quel produit se vend le plus) ; le `libelle`
+   * ci-dessous sert à l'affichage. Une ligne sans `produit_id` compte dans le
+   * chiffre d'affaires, jamais dans un classement par produit.
+   */
+  produit_id: string | null;
+  /** Photographie du nom au moment de la vente — renommer le produit ne réécrit pas l'historique. */
   libelle: string;
   /** Chaîne décimale (`NUMERIC(14,3)`), jamais un flottant. */
   quantite: string;
@@ -64,6 +73,8 @@ export type Vente = DatesOperation & {
   moyen_paiement: MoyenPaiement | null;
   statut: StatutOperation;
   note: string | null;
+  /** Client résolu, ou `null` pour une vente anonyme. */
+  client: { id: string; nom: string } | null;
   nombre_lignes: number;
   cree_le: string;
 };
@@ -95,16 +106,27 @@ export type Depense = DatesOperation & {
 // Corps de requête
 // ---------------------------------------------------------------------------
 
+/**
+ * Une ligne à créer.
+ *
+ * Il faut **au moins** un `produit_id` (le nom et le prix sont alors repris du
+ * catalogue), ou bien un `libelle` et un `prix_unitaire_mineur` pour un article
+ * hors catalogue. Voir docs/API-CONTRACT.md §5.4.
+ */
 export type EntreeLigneVente = {
-  libelle: string;
+  produit_id?: string | null;
+  libelle?: string;
   /** Chaîne décimale, 3 décimales maximum. */
   quantite: string;
-  prix_unitaire_mineur: MontantMineur;
+  /** Omis avec un `produit_id` : le prix du catalogue est recopié. */
+  prix_unitaire_mineur?: MontantMineur;
 };
 
 export type CorpsCreationVente = {
   /** `YYYY-MM-DD` (00:00 heure locale de l'entreprise) ou instant ISO complet. */
   effectuee_le: string;
+  /** Client de l'entreprise, ou `null` pour une vente anonyme. */
+  client_id?: string | null;
   /** Ignoré si `lignes` est fourni : le total est alors recalculé. */
   montant_total_mineur?: MontantMineur;
   moyen_paiement?: MoyenPaiement | null;
@@ -136,6 +158,7 @@ export type FiltresListe = {
   statut?: StatutOperation;
   moyen_paiement?: MoyenPaiement;
   categorie_id?: string;
+  client_id?: string;
 };
 
 export const LIMITE_LISTE_DEFAUT = 50;

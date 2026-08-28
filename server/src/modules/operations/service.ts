@@ -19,6 +19,7 @@ import {
   interpreterDateOperation,
   jourLocal,
 } from "../../domaine/temps.js";
+import type { DepotCatalogue, LigneProduitDb } from "../catalogue/depot.js";
 import type {
   DepotOperations,
   EntreeLigneDb,
@@ -75,7 +76,10 @@ export type ServiceOperations = {
   listerCategories(ctx: ContexteEntreprise): Promise<{ elements: CategorieDepense[] }>;
 };
 
-export function creerServiceOperations(depot: DepotOperations): ServiceOperations {
+export function creerServiceOperations(
+  depot: DepotOperations,
+  catalogue: DepotCatalogue,
+): ServiceOperations {
   /**
    * Traduit `du` / `au` (bornes **incluses** côté utilisateur) en intervalle
    * `[début, fin[` — la seule forme que le reste du code manipule.
@@ -105,6 +109,7 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
       statut: filtres.statut ?? null,
       moyen_paiement: filtres.moyen_paiement ?? null,
       categorie_id: filtres.categorie_id ?? null,
+      client_id: filtres.client_id ?? null,
       limite: filtres.limite,
       decalage: filtres.decalage,
     };
@@ -129,12 +134,37 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
    * source de vérité : un total qui contredirait son propre détail est un bug
    * qu'on ne veut pas pouvoir créer.
    */
-  function preparerLignes(
+  async function preparerLignes(
+    ctx: ContexteEntreprise,
     lignes: CreationVenteValidee["lignes"],
     montantFourni: number | undefined,
-  ): { lignes: EntreeLigneDb[] | null; total: bigint } {
+  ): Promise<{ lignes: EntreeLigneDb[] | null; total: bigint }> {
     if (lignes === undefined) {
       return { lignes: null, total: BigInt(montantFourni ?? 0) };
+    }
+
+    // Les produits référencés sont chargés EN UNE FOIS, pas une requête par
+    // ligne : une vente de 50 articles ne doit pas faire 50 allers-retours.
+    const identifiants = [
+      ...new Set(
+        lignes
+          .map((ligne) => ligne.produit_id)
+          .filter((id): id is string => typeof id === "string"),
+      ),
+    ];
+    const produits: Map<string, LigneProduitDb> = await catalogue.chargerProduits(
+      ctx.id,
+      identifiants,
+    );
+
+    for (const id of identifiants) {
+      // 400 et non 404 : c'est un champ du corps qui est invalide. Cela ne
+      // révèle rien non plus — l'appelant a fourni la valeur lui-même.
+      if (!produits.has(id)) {
+        throw erreurs.validation("Ce produit n'existe pas dans votre catalogue.", {
+          champs: [{ champ: "lignes.produit_id", message: "Produit inconnu." }],
+        });
+      }
     }
 
     const preparees: EntreeLigneDb[] = [];
@@ -149,11 +179,28 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
         );
       }
 
-      const prix = BigInt(ligne.prix_unitaire_mineur);
+      // Nom et prix sont RECOPIÉS depuis le catalogue, pas référencés :
+      // renommer un produit ou changer son prix ne doit pas réécrire
+      // l'historique des ventes déjà enregistrées.
+      const produit =
+        typeof ligne.produit_id === "string" ? produits.get(ligne.produit_id) : undefined;
+
+      const libelle = ligne.libelle ?? produit?.nom;
+      const prixBrut = ligne.prix_unitaire_mineur ?? produit?.prix_mineur;
+
+      if (libelle === undefined || prixBrut === undefined) {
+        throw erreurs.validation(
+          `Ligne ${index + 1} : indiquez un produit du catalogue, ou un libellé et un prix.`,
+          { champs: [{ champ: `lignes.${index}`, message: "Ligne incomplète." }] },
+        );
+      }
+
+      const prix = BigInt(prixBrut);
       const montant = montantLigne(quantite, prix);
 
       preparees.push({
-        libelle: ligne.libelle,
+        produit_id: ligne.produit_id ?? null,
+        libelle,
         quantite: quantiteVersTexte(quantite),
         prix_unitaire_mineur: prix,
         montant_mineur: montant,
@@ -182,6 +229,19 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
     }
   }
 
+  async function verifierClient(
+    ctx: ContexteEntreprise,
+    clientId: string | null | undefined,
+  ): Promise<void> {
+    if (clientId === undefined || clientId === null) return;
+
+    if (!(await catalogue.clientAppartient(ctx.id, clientId))) {
+      throw erreurs.validation("Ce client n'existe pas.", {
+        champs: [{ champ: "client_id", message: "Client inconnu." }],
+      });
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Traduction base → formes publiques
   // -------------------------------------------------------------------------
@@ -198,6 +258,10 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
       moyen_paiement: ligne.moyen_paiement,
       statut: ligne.statut,
       note: ligne.note,
+      client:
+        ligne.client_id === null
+          ? null
+          : { id: ligne.client_id, nom: ligne.client_nom ?? "" },
       nombre_lignes: Number(ligne.nombre_lignes),
       cree_le: ligne.cree_le.toISOString(),
     };
@@ -213,6 +277,7 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
       lignes: lignes.map((l) => ({
         id: l.id,
         rang: l.rang,
+        produit_id: l.produit_id,
         libelle: l.libelle,
         quantite: l.quantite,
         prix_unitaire_mineur: enNombreSur(l.prix_unitaire_mineur),
@@ -265,10 +330,12 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
     },
 
     async creerVente(ctx, corps) {
-      const { lignes, total } = preparerLignes(corps.lignes, corps.montant_total_mineur);
+      await verifierClient(ctx, corps.client_id);
+      const { lignes, total } = await preparerLignes(ctx, corps.lignes, corps.montant_total_mineur);
 
       const creee = await depot.creerVente(ctx.id, {
         effectuee_le: dateOperation(corps.effectuee_le, ctx.fuseau, "effectuee_le"),
+        client_id: corps.client_id ?? null,
         montant_total_mineur: total,
         moyen_paiement: corps.moyen_paiement ?? null,
         statut: corps.statut ?? "VALIDEE",
@@ -280,7 +347,10 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
     },
 
     async modifierVente(ctx, id, corps) {
+      await verifierClient(ctx, corps.client_id);
       const patch: Parameters<DepotOperations["modifierVente"]>[2] = {};
+
+      if (corps.client_id !== undefined) patch.client_id = corps.client_id;
 
       if (corps.effectuee_le !== undefined) {
         patch.effectuee_le = dateOperation(corps.effectuee_le, ctx.fuseau, "effectuee_le");
@@ -290,7 +360,7 @@ export function creerServiceOperations(depot: DepotOperations): ServiceOperation
       if (corps.note !== undefined) patch.note = corps.note;
 
       if (corps.lignes !== undefined) {
-        const { lignes, total } = preparerLignes(corps.lignes, undefined);
+        const { lignes, total } = await preparerLignes(ctx, corps.lignes, undefined);
         patch.lignes = lignes ?? [];
         // Le total suit les lignes, même quand le client en envoie un autre.
         patch.montant_total_mineur = total;

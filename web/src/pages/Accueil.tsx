@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ReponseSession } from "@bizly/shared";
+import { SectionCatalogue } from "./SectionCatalogue";
 import { SectionDepenses } from "./SectionDepenses";
 import { TableauDeBord } from "./TableauDeBord";
 import { SectionVentes } from "./SectionVentes";
@@ -9,7 +10,7 @@ export type AccueilProps = {
   deconnecter: () => Promise<void>;
 };
 
-type Onglet = "tableau" | "ventes" | "depenses";
+type Onglet = "tableau" | "ventes" | "depenses" | "catalogue";
 
 /**
  * Coquille de l'application connectée.
@@ -60,6 +61,7 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
               ["tableau", "Tableau de bord"],
               ["ventes", "Ventes"],
               ["depenses", "Dépenses"],
+              ["catalogue", "Catalogue"],
             ] as const
           ).map(([cle, libelle]) => (
             <button
@@ -83,6 +85,7 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
         {onglet === "tableau" && <TableauDeBord devise={entreprise.devise} />}
         {onglet === "ventes" && <SectionVentes devise={entreprise.devise} />}
         {onglet === "depenses" && <SectionDepenses devise={entreprise.devise} />}
+        {onglet === "catalogue" && <SectionCatalogue devise={entreprise.devise} />}
 
         <p className="mt-8 rounded-2xl border border-dashed border-white/10 p-6 text-sm text-ardoise-400">
           Questions intelligentes — Vague 4.

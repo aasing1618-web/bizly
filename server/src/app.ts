@@ -8,6 +8,8 @@ import {
 } from "./http/middlewares.js";
 import { creerRouteurAuth } from "./modules/auth/routes.js";
 import type { ServiceAuth } from "./modules/auth/service.js";
+import { creerRouteurCatalogue } from "./modules/catalogue/routes.js";
+import type { DepotCatalogue } from "./modules/catalogue/depot.js";
 import { creerRouteurKpi } from "./modules/kpi/routes.js";
 import type { DepotKpi } from "./modules/kpi/depot.js";
 import { creerRouteurOperations } from "./modules/operations/routes.js";
@@ -20,6 +22,7 @@ export type DependancesApp = {
   serviceAuth: ServiceAuth;
   serviceOperations: ServiceOperations;
   depotKpi: DepotKpi;
+  depotCatalogue: DepotCatalogue;
   version: string;
   demarreLe: number;
   production: boolean;
@@ -75,6 +78,9 @@ export function creerApp(deps: DependancesApp): Express {
       serviceAuth: deps.serviceAuth,
       serviceOperations: deps.serviceOperations,
     }),
+  );
+  api.use(
+    creerRouteurCatalogue({ serviceAuth: deps.serviceAuth, depot: deps.depotCatalogue }),
   );
   api.use(creerRouteurKpi({ serviceAuth: deps.serviceAuth, depot: deps.depotKpi }));
   api.use(routeApiIntrouvable);

@@ -8,6 +8,7 @@ import { creerServiceOperations } from "./modules/operations/service.js";
 import type { EtatBase } from "./db/sonde.js";
 import { definirNiveauJournal } from "./http/journal.js";
 import { creerDepotKpiMemoire } from "./test-utils/depotKpiMemoire.js";
+import { creerDepotCatalogueMemoire } from "./test-utils/depotCatalogueMemoire.js";
 
 /**
  * Tests du socle HTTP.
@@ -19,11 +20,14 @@ import { creerDepotKpiMemoire } from "./test-utils/depotKpiMemoire.js";
  */
 
 function app(sonderBase: () => Promise<EtatBase>) {
+  const depotCatalogue = creerDepotCatalogueMemoire();
+
   return creerApp({
     sonderBase,
     serviceAuth: creerServiceAuth({ depot: creerDepotMemoire() }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire()),
+    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
+    depotCatalogue,
     version: "0.1.0-test",
     demarreLe: Date.now() - 5_000,
     production: false,

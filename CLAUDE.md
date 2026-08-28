@@ -219,6 +219,8 @@ propriétaire du projet.
 | 1 | Auth (inscription, connexion, session, statut ACTIF/SUSPENDU) | livrée et vérifiée |
 | 2 | CRUD ventes + dépenses | livrée et vérifiée |
 | 3 | Moteur KPI + dashboard | livrée et vérifiée |
-| 4 | Moteur de questions intelligentes | à ouvrir — contenu métier à écrire |
+| 4a | Catalogue produits + clients | livrée et vérifiée |
+| 4b | Les 14 questions du moteur | à ouvrir |
+| 4c | Couche d'explication Gemini | attend la clé API |
 | 5 | Admin plateforme | |
 | 6 | Finition UI, déploiement | |

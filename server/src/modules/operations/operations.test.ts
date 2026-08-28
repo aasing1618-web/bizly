@@ -11,6 +11,7 @@ import {
 import { creerServiceAuth } from "../auth/service.js";
 import { creerServiceOperations } from "./service.js";
 import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
+import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
 
 /**
  * Ventes et dépenses, de bout en bout en HTTP, sans Postgres.
@@ -24,6 +25,7 @@ const CATEGORIE_LOYER = "11111111-1111-4111-8111-111111111111";
 
 let depotAuth: DepotMemoire;
 let depotOps: DepotOperationsMemoire;
+let depotCatalogue: ReturnType<typeof creerDepotCatalogueMemoire>;
 let app: ReturnType<typeof creerApp>;
 
 beforeAll(() => definirNiveauJournal("silence"));
@@ -32,11 +34,13 @@ afterAll(() => definirNiveauJournal("info"));
 beforeEach(() => {
   depotAuth = creerDepotMemoire();
   depotOps = creerDepotOperationsMemoire();
+  depotCatalogue = creerDepotCatalogueMemoire();
   app = creerApp({
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
     serviceAuth: creerServiceAuth({ depot: depotAuth }),
-    serviceOperations: creerServiceOperations(depotOps),
+    serviceOperations: creerServiceOperations(depotOps, depotCatalogue),
     depotKpi: creerDepotKpiMemoire(),
+    depotCatalogue,
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

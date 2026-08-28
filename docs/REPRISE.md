@@ -3,7 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 27 août 2026 — cas de référence métier reçu et encodé.**
+**Dernière mise à jour : 27 août 2026 — Vague 4a (catalogue et clients) livrée.**
 
 ---
 
@@ -355,10 +355,84 @@ aux ventes) — tout est détaillé dans `docs/ECARTS-SPEC.md`.
 
 ---
 
+## Vague 4a — catalogue de produits et clients *(livrée et vérifiée)*
+
+Contrat : `docs/API-CONTRACT.md` §5. Objet : donner au moteur de questions les
+données qui lui manquaient — **8 des 14 questions n'avaient rien à lire**.
+
+| Livrable | Où |
+|---|---|
+| Table `produits` (prix, **coût**, catégorie) | `db/migrations/0003_catalogue.sql` |
+| `lignes_vente.produit_id` (facultatif) | idem |
+| Accès aux données | `server/src/modules/catalogue/depot.ts` |
+| Routes produits et clients | `server/src/modules/catalogue/routes.ts` |
+| Marge produit | `shared/src/catalogue.ts` (`margePourcent`) |
+| Écrans catalogue et clients | `web/src/pages/SectionCatalogue.tsx` |
+| Sélecteurs dans la saisie de vente | `web/src/pages/SectionVentes.tsx` |
+
+Routes : `GET/POST /api/produits`, `GET/PATCH/DELETE /api/produits/:id`, les
+mêmes pour `/api/clients`. Les ventes acceptent désormais `client_id` et un
+`produit_id` par ligne.
+
+### Trois décisions de conception
+
+**Le libellé d'une ligne est une photographie, pas un lien.** Le nom et le prix
+sont **recopiés** du catalogue au moment de la vente. Renommer « T-shirt » en
+« T-shirt coton bio » ne réécrit pas l'historique : la vente de mars s'est faite
+sur un « T-shirt ». Le `produit_id` sert aux regroupements, le `libelle` à
+l'affichage — les deux sont nécessaires.
+
+**`produit_id` reste facultatif.** Une ligne peut rester du texte libre. Ces
+lignes comptent dans le chiffre d'affaires, jamais dans un classement par
+produit. Rendre le catalogue obligatoire imposerait de créer une fiche avant
+d'encaisser la première vente : un mur à l'entrée du produit.
+
+**`cout_mineur` est nullable, et ce `null` est signifiant.** Un produit sans coût
+est exclu de tout classement de rentabilité — ni au mieux, ni au pire. Lui
+attribuer 0 ou le prix de vente inventerait une marge de 100 % ou de 0 %.
+L'écran le dit explicitement à la saisie, et compte les produits concernés.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **265 tests**, 0 échec (238 auparavant, 27 ajoutés) |
+| Migration `0003` sur Supabase | appliquée |
+| **Parcours complet sur Supabase réel** | **33 vérifications, 0 échec** |
+
+Le parcours a rejoué **le catalogue du cas de référence métier** — 4 produits
+dont le Pull sans coût, 4 clients, les 10 ventes rattachées — puis recalculé
+depuis la base :
+
+- CA 315,00 € ; quantités T-shirt 4, Casquette 5, Sac 2, Pull 2 ;
+- **marge globale 138,00 €, Pull exclu** ;
+- CA par catégorie : Vêtements 170,00 €, Accessoires 145,00 € ;
+- **meilleur client Awa Diop, 165,00 €** ; les 2 ventes anonymes comptent dans
+  le CA (35,00 €) mais **ne polluent pas le classement clients** ;
+- renommer un produit **ne touche pas** l'historique des ventes ;
+- la **base elle-même** refuse une ligne pointant vers le produit d'une autre
+  entreprise (clé étrangère composite), pas seulement l'API.
+
+### Ce que cela débloque
+
+Les 5 questions restées sans réponse ont maintenant leurs données : produit le
+plus rentable, CA par catégorie, meilleurs clients, nombre de clients, clients
+inactifs. **Les indicateurs eux-mêmes restent à écrire — c'est la Vague 4b.**
+
+---
+
 ## Prochaine vague
 
-**Vague 4 — moteur de questions intelligentes.** C'est le **cœur de valeur** du
-produit : ce qui distingue Bizly d'un tableur.
+**Vague 4b — les 14 questions du moteur**, chacune adossée à sa formule, testées
+sur le cas de référence. Puis **4c**, la couche d'explication Gemini, qui attend
+`GEMINI_API_KEY` et le fichier `GEMINI.md`.
+
+Rappel de ce qui reste ouvert dans `docs/ECARTS-SPEC.md` : la règle de période
+précédente (calendaire ou glissante) est le seul arbitrage qui change ce que
+voit l'utilisateur.
+
+C'est le **cœur de valeur** du produit : ce qui distingue Bizly d'un tableur.
 
 La mécanique est spécifiée (`CLAUDE.md` §6) : une règle porte un identifiant, des
 secteurs concernés, un volume minimum, un seuil chiffré, une gravité, et un texte

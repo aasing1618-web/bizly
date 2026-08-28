@@ -38,16 +38,36 @@ const statut = z.enum(STATUTS_OPERATION);
 const note = z.string().trim().max(2000, "La note est trop longue.").nullable();
 const uuid = z.string().uuid("Identifiant invalide.");
 
-const ligneVente = z.object({
-  libelle: z.string().trim().min(1, "Le libellé est requis.").max(160, "Le libellé est trop long."),
-  // Chaîne et non nombre : `0.1 + 0.2` n'a pas sa place dans une quantité non
-  // plus. La conversion exacte est faite par `analyserQuantite`.
-  quantite: z.string().trim().min(1, "La quantité est requise.").max(20),
-  prix_unitaire_mineur: montantMineur,
-});
+/**
+ * Une ligne désigne un produit du catalogue, ou décrit un article libre.
+ *
+ * Le `refine` impose l'un ou l'autre : sans produit ni libellé, on ne saurait
+ * même pas quoi afficher dans l'historique.
+ */
+const ligneVente = z
+  .object({
+    produit_id: uuid.nullable().optional(),
+    libelle: z.string().trim().min(1).max(160, "Le libellé est trop long.").optional(),
+    // Chaîne et non nombre : `0.1 + 0.2` n'a pas sa place dans une quantité non
+    // plus. La conversion exacte est faite par `analyserQuantite`.
+    quantite: z.string().trim().min(1, "La quantité est requise.").max(20),
+    // Omis avec un produit : le prix du catalogue est recopié.
+    prix_unitaire_mineur: montantMineur.optional(),
+  })
+  .refine(
+    (ligne) =>
+      (ligne.produit_id !== undefined && ligne.produit_id !== null) ||
+      (ligne.libelle !== undefined && ligne.prix_unitaire_mineur !== undefined),
+    {
+      message:
+        "Chaque ligne demande soit un produit du catalogue, soit un libellé et un prix.",
+      path: ["produit_id"],
+    },
+  );
 
 export const schemaCreationVente = z.object({
   effectuee_le: dateOperation,
+  client_id: uuid.nullable().optional(),
   montant_total_mineur: montantMineur.optional(),
   moyen_paiement: moyenPaiement.nullable().optional(),
   statut: statut.optional(),
@@ -73,6 +93,7 @@ export const schemaCreationVente = z.object({
 export const schemaModificationVente = z
   .object({
     effectuee_le: dateOperation.optional(),
+    client_id: uuid.nullable().optional(),
     montant_total_mineur: montantMineur.optional(),
     moyen_paiement: moyenPaiement.nullable().optional(),
     statut: statut.optional(),
@@ -122,6 +143,7 @@ export const schemaFiltres = z.object({
   statut: statut.optional(),
   moyen_paiement: moyenPaiement.optional(),
   categorie_id: uuid.optional(),
+  client_id: uuid.optional(),
 });
 
 export type FiltresValides = z.infer<typeof schemaFiltres>;

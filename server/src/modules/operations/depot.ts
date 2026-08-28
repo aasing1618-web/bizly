@@ -27,11 +27,14 @@ export type LigneVenteDb = {
   note: string | null;
   cree_le: Date;
   nombre_lignes: bigint;
+  client_id: string | null;
+  client_nom: string | null;
 };
 
 export type LigneDetailDb = {
   id: string;
   rang: number;
+  produit_id: string | null;
   libelle: string;
   quantite: string;
   prix_unitaire_mineur: bigint;
@@ -60,11 +63,13 @@ export type FiltresDepot = {
   statut: StatutOperation | null;
   moyen_paiement: MoyenPaiement | null;
   categorie_id: string | null;
+  client_id: string | null;
   limite: number;
   decalage: number;
 };
 
 export type EntreeLigneDb = {
+  produit_id: string | null;
   libelle: string;
   quantite: string;
   prix_unitaire_mineur: bigint;
@@ -73,6 +78,7 @@ export type EntreeLigneDb = {
 
 export type EntreeVenteDb = {
   effectuee_le: Date;
+  client_id: string | null;
   montant_total_mineur: bigint;
   moyen_paiement: MoyenPaiement | null;
   statut: StatutOperation;
@@ -82,6 +88,7 @@ export type EntreeVenteDb = {
 
 export type PatchVenteDb = {
   effectuee_le?: Date;
+  client_id?: string | null;
   montant_total_mineur?: bigint;
   moyen_paiement?: MoyenPaiement | null;
   statut?: StatutOperation;
@@ -137,8 +144,13 @@ export type DepotOperations = {
 const COLONNES_VENTE = `
   v.id, v.numero, v.effectuee_le, v.montant_total_mineur, v.moyen_paiement,
   v.statut, v.note, v.cree_le,
+  v.client_id       AS client_id,
+  cl.nom            AS client_nom,
   (SELECT count(*) FROM lignes_vente l WHERE l.vente_id = v.id) AS nombre_lignes
 `;
+
+/** Le client est résolu dès la lecture : afficher une liste ne coûte pas deux appels. */
+const JOINTURE_CLIENT = `LEFT JOIN clients cl ON cl.id = v.client_id`;
 
 const COLONNES_DEPENSE = `
   d.id, d.effectuee_le, d.montant_mineur, d.fournisseur, d.moyen_paiement,
@@ -163,7 +175,7 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
     venteId: string,
   ): Promise<LigneDetailDb[]> {
     const resultat = await client.query<LigneDetailDb>(
-      `SELECT id, rang, libelle, quantite, prix_unitaire_mineur, montant_mineur
+      `SELECT id, rang, produit_id, libelle, quantite, prix_unitaire_mineur, montant_mineur
          FROM lignes_vente
         WHERE vente_id = $1 AND entreprise_id = $2
         ORDER BY rang`,
@@ -180,6 +192,7 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
     const resultat = await client.query<LigneVenteDb>(
       `SELECT ${COLONNES_VENTE}
          FROM ventes v
+         ${JOINTURE_CLIENT}
         WHERE v.id = $1 AND v.entreprise_id = $2 AND v.supprime_le IS NULL`,
       [id, entrepriseId],
     );
@@ -210,12 +223,14 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
     for (const [index, ligne] of lignes.entries()) {
       await client.query(
         `INSERT INTO lignes_vente
-           (entreprise_id, vente_id, rang, libelle, quantite, prix_unitaire_mineur, montant_mineur)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           (entreprise_id, vente_id, rang, produit_id, libelle, quantite,
+            prix_unitaire_mineur, montant_mineur)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           entrepriseId,
           venteId,
           index + 1,
+          ligne.produit_id,
           ligne.libelle,
           ligne.quantite,
           ligne.prix_unitaire_mineur.toString(),
@@ -230,20 +245,23 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
       const resultat = await pool.query<LigneVenteDb & { total_filtre: bigint }>(
         `SELECT ${COLONNES_VENTE}, count(*) OVER () AS total_filtre
            FROM ventes v
+           ${JOINTURE_CLIENT}
           WHERE v.entreprise_id = $1
             AND v.supprime_le IS NULL
             AND ($2::timestamptz IS NULL OR v.effectuee_le >= $2)
             AND ($3::timestamptz IS NULL OR v.effectuee_le <  $3)
             AND ($4::text IS NULL OR v.statut = $4)
             AND ($5::text IS NULL OR v.moyen_paiement = $5)
+            AND ($6::uuid IS NULL OR v.client_id = $6)
           ORDER BY v.effectuee_le DESC, v.numero DESC
-          LIMIT $6 OFFSET $7`,
+          LIMIT $7 OFFSET $8`,
         [
           entrepriseId,
           filtres.debut,
           filtres.fin,
           filtres.statut,
           filtres.moyen_paiement,
+          filtres.client_id,
           filtres.limite,
           filtres.decalage,
         ],
@@ -281,14 +299,15 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
 
         const creee = await client.query<{ id: string }>(
           `INSERT INTO ventes
-             (entreprise_id, numero, effectuee_le, montant_total_mineur,
+             (entreprise_id, numero, effectuee_le, client_id, montant_total_mineur,
               moyen_paiement, statut, note)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING id`,
           [
             entrepriseId,
             numero.toString(),
             entree.effectuee_le,
+            entree.client_id,
             entree.montant_total_mineur.toString(),
             entree.moyen_paiement,
             entree.statut,
@@ -330,7 +349,8 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
              montant_total_mineur = CASE WHEN $5::boolean THEN $6::bigint      ELSE montant_total_mineur END,
              moyen_paiement       = CASE WHEN $7::boolean THEN $8::text        ELSE moyen_paiement END,
              statut               = CASE WHEN $9::boolean THEN $10::text       ELSE statut END,
-             note                 = CASE WHEN $11::boolean THEN $12::text      ELSE note END
+             note                 = CASE WHEN $11::boolean THEN $12::text      ELSE note END,
+             client_id            = CASE WHEN $13::boolean THEN $14::uuid      ELSE client_id END
            WHERE id = $1 AND entreprise_id = $2`,
           [
             id,
@@ -345,6 +365,8 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
             patch.statut ?? null,
             patch.note !== undefined,
             patch.note ?? null,
+            patch.client_id !== undefined,
+            patch.client_id ?? null,
           ],
         );
 

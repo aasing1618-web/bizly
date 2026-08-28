@@ -656,3 +656,164 @@ illisible bien avant que la base ne peine.
 
 Le moteur (`domaine/kpi.ts`) est **pur** : entrées → sortie, sans horloge ni
 base. C'est ce qui rend les cas de référence du §8 testables au centime.
+
+---
+
+## §5. Vague 4a — catalogue de produits et clients *(contrat arrêté)*
+
+Objet : donner au moteur de questions les données qui lui manquent. Sans
+catalogue porteur d'un **coût**, la marge n'existe pas ; sans clients rattachés
+aux ventes, huit des quatorze questions de la spécification métier
+interrogent le vide (`docs/ECARTS-SPEC.md` §1).
+
+Toutes ces routes exigent une session. L'entreprise vient du contexte, jamais de
+l'URL.
+
+### 5.1 Trois décisions de conception
+
+#### Le libellé d'une ligne de vente est une photographie, pas un lien
+
+Une ligne de vente garde **son propre `libelle`**, recopié depuis le produit au
+moment de la vente, en plus de `produit_id`.
+
+Renommer « T-shirt » en « T-shirt coton bio » ne doit pas réécrire l'historique :
+la vente de mars s'est faite sur un « T-shirt », et c'est ce que la facture, le
+journal et le client ont vu. Même raisonnement pour `prix_unitaire_mineur`, déjà
+figé depuis la Vague 2.
+
+Le `produit_id` sert aux **regroupements** (quel produit se vend le plus), le
+`libelle` sert à **l'affichage de l'historique**. Les deux sont nécessaires.
+
+#### `produit_id` reste facultatif
+
+Une ligne peut désigner un produit du catalogue, ou rester du texte libre — un
+article hors catalogue, une prestation ponctuelle.
+
+Conséquence, conforme au §8 de la spécification métier : **les lignes sans
+`produit_id` comptent dans le chiffre d'affaires, jamais dans un classement par
+produit**. Le tableau de bord annonce alors combien de CA échappe au classement,
+plutôt que de laisser croire que le total est complet.
+
+Rendre le catalogue obligatoire imposerait de créer une fiche produit avant
+d'encaisser la première vente. C'est un mur à l'entrée du produit.
+
+#### `[À VALIDER]` La marge se calcule sur le prix du catalogue, pas sur le prix de vente
+
+La spécification métier §3.6 dit : `marge % = (price − cost) / price`, et
+`marge € = (price − cost) × quantité vendue` — c'est-à-dire le prix **du
+catalogue**, pas celui auquel la vente s'est réellement faite.
+
+Conséquence : une remise n'apparaît nulle part dans la marge. Un T-shirt à 20 €
+(coût 8 €) soldé à 12 € affichera toujours 60 % de marge, alors que la marge
+réelle est de 33 %.
+
+**J'implémente la règle telle qu'elle est écrite**, et je la signale : si tu
+préfères la marge réelle, la formule devient
+`(prix_unitaire_vendu − cout) × quantité`, avec le coût figé lui aussi au moment
+de la vente. C'est un changement de schéma, pas seulement de formule.
+
+### 5.2 Produits — `/api/produits`
+
+`GET` → liste, triée par nom. Paramètres : `limite`, `decalage`, `categorie`,
+`recherche` (sur le nom, insensible à la casse).
+
+`POST` → **201**
+
+```jsonc
+{
+  "nom": "T-shirt",
+  "categorie": "Vêtements",        // optionnel, texte libre
+  "prix_mineur": 2000,             // 20,00 €
+  "cout_mineur": 800               // optionnel — null signifie « non renseigné »
+}
+```
+
+`PATCH /:id`, `DELETE /:id` (suppression douce).
+
+| Code | Cas |
+|---|---|
+| **201** / **200** / **204** | selon la méthode |
+| **400** `VALIDATION` | nom vide, prix négatif, coût négatif |
+| **409** `CONFLIT` | un produit actif porte déjà ce nom dans l'entreprise |
+| **404** | inexistant, supprimé, ou appartenant à une autre entreprise |
+
+**`cout_mineur` est nullable, et ce `null` est signifiant.** Un produit sans coût
+est **exclu de tout classement de rentabilité** — ni au mieux, ni au pire. Lui
+attribuer un coût par défaut (0, ou le prix de vente) inventerait une marge de
+100 % ou de 0 % : deux mensonges.
+
+Unicité du nom par entreprise, insensible à la casse, sur les produits non
+supprimés. Sans elle, deux fiches « T-shirt » scinderaient les classements en
+deux et fausseraient toutes les réponses par produit.
+
+### 5.3 Clients — `/api/clients`
+
+`GET` → liste triée par nom. Paramètres : `limite`, `decalage`, `recherche`.
+
+`POST` → **201**
+
+```jsonc
+{ "nom": "Awa Diop", "email": "awa@exemple.fr", "telephone": "+221…", "note": "…" }
+```
+
+Seul `nom` est obligatoire. `PATCH /:id`, `DELETE /:id` (suppression douce).
+
+La table existe depuis la Vague 0, `cree_le` comprise — c'est le `created_at` de
+la spécification, utilisé pour compter les **nouveaux clients** d'une période.
+
+Supprimer un client ne touche pas ses ventes : la ligne reste en base
+(`supprime_le`), la vente continue de la référencer, et l'historique reste juste.
+
+### 5.4 Ventes — deux champs de plus
+
+`POST /api/ventes` et `PATCH /api/ventes/:id` acceptent désormais :
+
+```jsonc
+{
+  "client_id": "uuid",             // optionnel, null = vente anonyme
+  "lignes": [
+    { "produit_id": "uuid", "quantite": "2" },              // prix et libellé repris du catalogue
+    { "produit_id": "uuid", "quantite": "2", "prix_unitaire_mineur": 1200 },  // prix forcé (remise)
+    { "libelle": "Retouche", "quantite": "1", "prix_unitaire_mineur": 500 }   // hors catalogue
+  ]
+}
+```
+
+Règles de remplissage d'une ligne :
+
+| Envoyé | Libellé retenu | Prix unitaire retenu |
+|---|---|---|
+| `produit_id` seul | nom du produit, **recopié** | prix du catalogue, **recopié** |
+| `produit_id` + `prix_unitaire_mineur` | nom du produit | le prix envoyé (remise, promotion) |
+| `produit_id` + `libelle` | le libellé envoyé | prix du catalogue si non fourni |
+| `libelle` + `prix_unitaire_mineur` | le libellé envoyé | le prix envoyé |
+| ni l'un ni l'autre | **400** | |
+
+`client_id` et `produit_id` doivent appartenir à l'entreprise, sinon **400**
+`VALIDATION` — pas 404 : c'est un champ du corps qui est invalide, on ne cherche
+pas une ressource, et l'appelant a fourni la valeur lui-même.
+
+La réponse d'une vente porte désormais `client` **résolu** (ou `null`) et chaque
+ligne porte son `produit_id`.
+
+### 5.5 Ce que cela débloque
+
+| Question de la spécification métier §4 | Débloquée par |
+|---|---|
+| Quel produit est le plus rentable ? | `produits.cout_mineur` |
+| Quelle catégorie génère le plus de revenus ? | `produits.categorie` |
+| Qui sont mes meilleurs clients ? | `ventes.client_id` |
+| Combien de clients ai-je ? | `clients` |
+| Quels clients n'ont pas acheté récemment ? | `clients` + `ventes.client_id` |
+
+Les indicateurs eux-mêmes (marge, classements clients, inactifs) arrivent en
+**Vague 4b** : cette vague pose les données et la saisie, pas les calculs.
+
+### 5.6 Hors périmètre
+
+| Exclu | Pourquoi |
+|---|---|
+| Stock, seuil de réapprovisionnement | Ce n'est pas de l'analyse, c'est un autre produit. |
+| Historique des prix du catalogue | La photographie sur la ligne de vente suffit à l'historique. |
+| Import du catalogue par fichier | Après le MVP. |
+| Fusion de doublons clients | À prévoir si la saisie libre en crée. |

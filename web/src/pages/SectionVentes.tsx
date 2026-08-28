@@ -5,8 +5,10 @@ import {
   LIBELLES_MOYEN_PAIEMENT,
   montantVersSaisie,
   MOYENS_PAIEMENT,
+  type Client,
   type Devise,
   type EntreeLigneVente,
+  type Produit,
   type MoyenPaiement,
   type Vente,
 } from "@bizly/shared";
@@ -14,10 +16,11 @@ import { Alerte, Bouton, Champ, Liste } from "../composants/Formulaire";
 import { ChampMontant } from "../composants/ChampMontant";
 import { ErreurApiClient } from "../lib/api";
 import { aujourdhui, apiVentes } from "../lib/operations";
+import { apiClients, apiProduits } from "../lib/catalogue";
 
-type LigneSaisie = { libelle: string; quantite: string; prix: string };
+type LigneSaisie = { produitId: string; libelle: string; quantite: string; prix: string };
 
-const LIGNE_VIDE: LigneSaisie = { libelle: "", quantite: "1", prix: "" };
+const LIGNE_VIDE: LigneSaisie = { produitId: "", libelle: "", quantite: "1", prix: "" };
 
 export function SectionVentes({ devise }: { devise: Devise }) {
   const [ventes, setVentes] = useState<Vente[]>([]);
@@ -31,6 +34,9 @@ export function SectionVentes({ devise }: { devise: Devise }) {
   const [moyen, setMoyen] = useState<MoyenPaiement | "">("");
   const [note, setNote] = useState("");
   const [lignes, setLignes] = useState<LigneSaisie[]>([]);
+  const [clientId, setClientId] = useState("");
+  const [produits, setProduits] = useState<Produit[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [envoi, setEnvoi] = useState(false);
 
   const recharger = useCallback(async () => {
@@ -48,6 +54,10 @@ export function SectionVentes({ devise }: { devise: Devise }) {
 
   useEffect(() => {
     void recharger();
+    // Catalogue et clients servent aux listes déroulantes du formulaire. Leur
+    // absence n'empêche pas de saisir : une ligne peut rester en texte libre.
+    void apiProduits.lister({ limite: 200 }).then((p) => setProduits(p.elements)).catch(() => setProduits([]));
+    void apiClients.lister({ limite: 200 }).then((c) => setClients(c.elements)).catch(() => setClients([]));
   }, [recharger]);
 
   function reinitialiser() {
@@ -57,6 +67,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
     setMoyen("");
     setNote("");
     setLignes([]);
+    setClientId("");
   }
 
   // Total prévisionnel des lignes, calculé pour l'aperçu seulement : le serveur
@@ -77,6 +88,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
       const lignesUtiles: EntreeLigneVente[] = lignes
         .filter((ligne) => ligne.libelle.trim() !== "" && ligne.prix.trim() !== "")
         .map((ligne) => ({
+          ...(ligne.produitId === "" ? {} : { produit_id: ligne.produitId }),
           libelle: ligne.libelle.trim(),
           quantite: ligne.quantite.replace(",", "."),
           prix_unitaire_mineur: analyserMontantSaisi(ligne.prix, devise) ?? 0,
@@ -95,6 +107,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           : { montant_total_mineur: montantMineur ?? 0 }),
         moyen_paiement: moyen === "" ? null : moyen,
         note: note.trim() === "" ? null : note.trim(),
+        client_id: clientId === "" ? null : clientId,
       };
 
       if (enEdition === null) await apiVentes.creer(corps);
@@ -114,11 +127,13 @@ export function SectionVentes({ devise }: { devise: Devise }) {
     setDate(vente.date_locale);
     setMoyen(vente.moyen_paiement ?? "");
     setNote(vente.note ?? "");
+    setClientId(vente.client?.id ?? "");
 
     if (vente.nombre_lignes > 0) {
       const detail = await apiVentes.obtenir(vente.id);
       setLignes(
         detail.lignes.map((ligne) => ({
+          produitId: ligne.produit_id ?? "",
           libelle: ligne.libelle,
           quantite: ligne.quantite,
           prix: montantVersSaisie(ligne.prix_unitaire_mineur, devise),
@@ -173,9 +188,47 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {lignes.map((ligne, index) => (
-            <div key={index} className="grid grid-cols-[1fr_4rem_5rem_2rem] gap-2">
+            <div key={index} className="space-y-2 rounded-lg border border-white/10 p-2">
+              {produits.length > 0 && (
+                <select
+                  aria-label={`Produit de la ligne ${index + 1}`}
+                  value={ligne.produitId}
+                  onChange={(e) => {
+                    // Choisir un produit pré-remplit nom et prix. Les deux
+                    // restent modifiables : le serveur fige ce qui est envoyé,
+                    // ce qui permet une remise sans toucher au catalogue.
+                    const produit = produits.find((p) => p.id === e.target.value);
+                    setLignes(
+                      lignes.map((l, i) =>
+                        i === index
+                          ? produit === undefined
+                            ? { ...l, produitId: "" }
+                            : {
+                                ...l,
+                                produitId: produit.id,
+                                libelle: produit.nom,
+                                prix: montantVersSaisie(produit.prix_mineur, devise),
+                              }
+                          : l,
+                      ),
+                    );
+                  }}
+                  className="w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm"
+                >
+                  <option value="" className="bg-ardoise-900">
+                    Hors catalogue (saisie libre)
+                  </option>
+                  {produits.map((produit) => (
+                    <option key={produit.id} value={produit.id} className="bg-ardoise-900">
+                      {produit.nom} — {formaterMontant(produit.prix_mineur, devise)}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <div className="grid grid-cols-[1fr_4rem_5rem_2rem] gap-2">
               <input
                 aria-label={`Libellé de la ligne ${index + 1}`}
                 placeholder="Article"
@@ -212,6 +265,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
               >
                 ×
               </button>
+              </div>
             </div>
           ))}
 
@@ -223,6 +277,24 @@ export function SectionVentes({ devise }: { devise: Devise }) {
             + Détailler en lignes
           </button>
         </div>
+
+        <Liste
+          libelle="Client"
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        >
+          {/* Une vente sans client reste parfaitement valide : elle compte
+              dans le chiffre d'affaires, simplement pas dans les classements
+              de clients. */}
+          <option value="" className="bg-ardoise-900">
+            Vente anonyme
+          </option>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id} className="bg-ardoise-900">
+              {client.nom}
+            </option>
+          ))}
+        </Liste>
 
         <Liste
           libelle="Moyen de paiement"

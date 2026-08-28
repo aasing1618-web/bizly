@@ -69,6 +69,9 @@ export function creerDepotOperationsMemoire(): DepotOperationsMemoire {
       if (filtres.moyen_paiement !== null && element.moyen_paiement !== filtres.moyen_paiement) {
         return false;
       }
+      if (filtres.client_id !== null && "client_id" in element) {
+        if ((element as { client_id: string | null }).client_id !== filtres.client_id) return false;
+      }
       if (filtres.categorie_id !== null && categorieDe !== undefined) {
         if (categorieDe(element) !== filtres.categorie_id) return false;
       }
@@ -112,6 +115,7 @@ export function creerDepotOperationsMemoire(): DepotOperationsMemoire {
       const lignes: LigneDetailDb[] = (entree.lignes ?? []).map((ligne, index) => ({
         id: randomUUID(),
         rang: index + 1,
+        produit_id: ligne.produit_id,
         libelle: ligne.libelle,
         quantite: ligne.quantite,
         prix_unitaire_mineur: ligne.prix_unitaire_mineur,
@@ -128,6 +132,8 @@ export function creerDepotOperationsMemoire(): DepotOperationsMemoire {
         note: entree.note,
         cree_le: new Date(),
         nombre_lignes: BigInt(lignes.length),
+        client_id: entree.client_id,
+        client_nom: entree.client_id === null ? null : "Client de test",
       };
 
       ventes.push({ entreprise_id: entrepriseId, vente, lignes, supprimee: false });
@@ -145,11 +151,16 @@ export function creerDepotOperationsMemoire(): DepotOperationsMemoire {
       if (patch.moyen_paiement !== undefined) cible.vente.moyen_paiement = patch.moyen_paiement;
       if (patch.statut !== undefined) cible.vente.statut = patch.statut;
       if (patch.note !== undefined) cible.vente.note = patch.note;
+      if (patch.client_id !== undefined) {
+        cible.vente.client_id = patch.client_id;
+        cible.vente.client_nom = patch.client_id === null ? null : "Client de test";
+      }
 
       if (patch.lignes !== undefined) {
         cible.lignes = patch.lignes.map((ligne, index) => ({
           id: randomUUID(),
           rang: index + 1,
+          produit_id: ligne.produit_id,
           libelle: ligne.libelle,
           quantite: ligne.quantite,
           prix_unitaire_mineur: ligne.prix_unitaire_mineur,
