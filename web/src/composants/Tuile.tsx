@@ -46,11 +46,6 @@ export function Tuile({
         ? formaterMontant(valeur, devise)
         : new Intl.NumberFormat("fr-FR").format(valeur);
 
-  /**
-   * Quand le signe a été traversé, le serveur ne rend pas de pourcentage : seul
-   * l'écart en montant reste lisible (spécification métier §3.5). Un bénéfice
-   * passant de +20 € à −60 € s'affiche « −80,00 € », pas « −400,0 % ».
-   */
   const secondaire =
     evolution_pourcent !== null
       ? { texte: formaterPourcent(evolution_pourcent), signe: evolution_pourcent }
@@ -65,29 +60,38 @@ export function Tuile({
     secondaire === null ? null : hausseEstBonne ? secondaire.signe >= 0 : secondaire.signe <= 0;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-ardoise-900 p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-ardoise-400">{titre}</p>
+    <div className="bizly-card p-5 relative overflow-hidden group">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{titre}</p>
+        {base_nulle ? (
+          <span className="pill-tag pill-indigo">Nouveau</span>
+        ) : secondaire !== null ? (
+          <span className={`pill-tag ${amelioration === true ? "pill-emerald" : "pill-red"}`}>
+            {secondaire.texte}
+          </span>
+        ) : null}
+      </div>
 
       <p
-        className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${
-          valeur === null ? "text-ardoise-400" : ""
+        className={`mt-3 text-2xl font-extrabold tabular-nums tracking-tight ${
+          valeur === null ? "text-slate-400" : "text-slate-900"
         }`}
       >
         {valeurAffichee}
       </p>
 
-      <p className="mt-1 text-xs">
-        {base_nulle ? (
-          <span className="text-ardoise-400">nouveau sur cette période</span>
-        ) : secondaire === null ? (
-          <span className="text-ardoise-400">—</span>
-        ) : (
-          <span className={amelioration === true ? "text-menthe-400" : "text-corail-400"}>
-            {secondaire.texte}
-          </span>
-        )}
-        {precision !== undefined && <span className="ml-1 text-ardoise-400">{precision}</span>}
-      </p>
+      <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+        <span>{precision ?? (base_nulle ? "Première enregistrement" : "vs période précédente")}</span>
+      </div>
+
+      <div className="mt-3 thin-progress">
+        <div
+          className={`thin-progress-bar ${
+            amelioration === false ? "bg-red-500" : "bg-gradient-to-r from-indigo-500 to-emerald-500"
+          }`}
+          style={{ width: valeur === null ? "0%" : "75%" }}
+        />
+      </div>
     </div>
   );
 }
@@ -95,18 +99,30 @@ export function Tuile({
 /** Tuile sans comparaison — la marge, par exemple. */
 export function TuilePourcent({ titre, valeur }: { titre: string; valeur: number | null }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-ardoise-900 p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-ardoise-400">{titre}</p>
+    <div className="bizly-card p-5 relative overflow-hidden group">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{titre}</p>
+        <span className="pill-tag pill-cyan">Rentabilité</span>
+      </div>
+
       <p
-        className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${
-          valeur === null ? "text-ardoise-400" : ""
+        className={`mt-3 text-2xl font-extrabold tabular-nums tracking-tight ${
+          valeur === null ? "text-slate-400" : "text-slate-900"
         }`}
       >
         {valeur === null ? VALEUR_NON_CALCULABLE : formaterPourcent(valeur, { signe: false })}
       </p>
-      <p className="mt-1 text-xs text-ardoise-400">
-        {valeur === null ? "aucun chiffre d'affaires" : "du chiffre d'affaires"}
-      </p>
+
+      <div className="mt-3 text-xs text-slate-500">
+        {valeur === null ? "aucun chiffre d'affaires" : "du chiffre d'affaires global"}
+      </div>
+
+      <div className="mt-3 thin-progress">
+        <div
+          className="thin-progress-bar bg-gradient-to-r from-cyan-500 to-blue-600"
+          style={{ width: valeur === null ? "0%" : `${Math.min(Math.max(valeur / 10, 5), 100)}%` }}
+        />
+      </div>
     </div>
   );
 }

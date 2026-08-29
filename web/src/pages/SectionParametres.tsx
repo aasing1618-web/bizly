@@ -396,10 +396,13 @@ function BlocAbonnement({ entreprise }: { entreprise: EntreprisePublique }) {
 
 function Carte({ titre, children }: { titre: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-ardoise-900 p-6">
-      <h2 className="mb-4 text-sm font-medium uppercase tracking-[0.16em] text-ardoise-400">
-        {titre}
-      </h2>
+    <section className="bizly-card p-6">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          {titre}
+        </h2>
+        <span className="pill-tag pill-indigo">Paramètres</span>
+      </div>
       {children}
     </section>
   );
@@ -409,9 +412,9 @@ function Confirmation({ children }: { children: ReactNode }) {
   return (
     <p
       role="status"
-      className="rounded-lg border border-menthe-400/40 bg-menthe-400/10 px-3 py-2.5 text-sm text-menthe-400"
+      className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xs"
     >
-      {children}
+      ✓ {children}
     </p>
   );
 }

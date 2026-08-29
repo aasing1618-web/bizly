@@ -161,11 +161,14 @@ export function SectionVentes({ devise }: { devise: Devise }) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <form
         onSubmit={soumettre}
-        className="h-fit space-y-4 rounded-2xl border border-white/10 bg-ardoise-900 p-6"
+        className="h-fit space-y-4 bizly-card p-6"
       >
-        <h2 className="font-semibold">
-          {enEdition === null ? "Nouvelle vente" : "Modifier la vente"}
-        </h2>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-sm font-extrabold text-slate-900">
+            {enEdition === null ? "Nouvelle vente" : "Modifier la vente"}
+          </h2>
+          <span className="pill-tag pill-emerald">Ventes</span>
+        </div>
 
         {erreur !== null && <Alerte>{erreur}</Alerte>}
 
@@ -180,9 +183,9 @@ export function SectionVentes({ devise }: { devise: Devise }) {
         {lignes.length === 0 ? (
           <ChampMontant libelle="Montant total" valeur={montant} onChange={setMontant} devise={devise} />
         ) : (
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm">
-            <span className="text-ardoise-400">Total calculé depuis les lignes</span>
-            <p className="mt-1 text-lg font-semibold tabular-nums">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
+            <span className="text-slate-500 font-semibold">Total calculé depuis les lignes</span>
+            <p className="mt-1 text-lg font-extrabold text-slate-900 tabular-nums">
               {formaterMontant(apercuLignes, devise)}
             </p>
           </div>
@@ -190,15 +193,12 @@ export function SectionVentes({ devise }: { devise: Devise }) {
 
         <div className="space-y-3">
           {lignes.map((ligne, index) => (
-            <div key={index} className="space-y-2 rounded-lg border border-white/10 p-2">
+            <div key={index} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
               {produits.length > 0 && (
                 <select
                   aria-label={`Produit de la ligne ${index + 1}`}
                   value={ligne.produitId}
                   onChange={(e) => {
-                    // Choisir un produit pré-remplit nom et prix. Les deux
-                    // restent modifiables : le serveur fige ce qui est envoyé,
-                    // ce qui permet une remise sans toucher au catalogue.
                     const produit = produits.find((p) => p.id === e.target.value);
                     setLignes(
                       lignes.map((l, i) =>
@@ -215,13 +215,13 @@ export function SectionVentes({ devise }: { devise: Devise }) {
                       ),
                     );
                   }}
-                  className="w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800"
                 >
-                  <option value="" className="bg-ardoise-900">
+                  <option value="">
                     Hors catalogue (saisie libre)
                   </option>
                   {produits.map((produit) => (
-                    <option key={produit.id} value={produit.id} className="bg-ardoise-900">
+                    <option key={produit.id} value={produit.id}>
                       {produit.nom} — {formaterMontant(produit.prix_mineur, devise)}
                     </option>
                   ))}
@@ -229,42 +229,42 @@ export function SectionVentes({ devise }: { devise: Devise }) {
               )}
 
               <div className="grid grid-cols-[1fr_4rem_5rem_2rem] gap-2">
-              <input
-                aria-label={`Libellé de la ligne ${index + 1}`}
-                placeholder="Article"
-                value={ligne.libelle}
-                onChange={(e) =>
-                  setLignes(lignes.map((l, i) => (i === index ? { ...l, libelle: e.target.value } : l)))
-                }
-                className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm"
-              />
-              <input
-                aria-label={`Quantité de la ligne ${index + 1}`}
-                inputMode="decimal"
-                value={ligne.quantite}
-                onChange={(e) =>
-                  setLignes(lignes.map((l, i) => (i === index ? { ...l, quantite: e.target.value } : l)))
-                }
-                className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-right text-sm tabular-nums"
-              />
-              <input
-                aria-label={`Prix unitaire de la ligne ${index + 1}`}
-                inputMode="decimal"
-                placeholder="prix"
-                value={ligne.prix}
-                onChange={(e) =>
-                  setLignes(lignes.map((l, i) => (i === index ? { ...l, prix: e.target.value } : l)))
-                }
-                className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-right text-sm tabular-nums"
-              />
-              <button
-                type="button"
-                aria-label={`Retirer la ligne ${index + 1}`}
-                onClick={() => setLignes(lignes.filter((_, i) => i !== index))}
-                className="rounded-lg border border-white/10 text-ardoise-400 hover:border-corail-400/60 hover:text-corail-400"
-              >
-                ×
-              </button>
+                <input
+                  aria-label={`Libellé de la ligne ${index + 1}`}
+                  placeholder="Article"
+                  value={ligne.libelle}
+                  onChange={(e) =>
+                    setLignes(lignes.map((l, i) => (i === index ? { ...l, libelle: e.target.value } : l)))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-800"
+                />
+                <input
+                  aria-label={`Quantité de la ligne ${index + 1}`}
+                  inputMode="decimal"
+                  value={ligne.quantite}
+                  onChange={(e) =>
+                    setLignes(lignes.map((l, i) => (i === index ? { ...l, quantite: e.target.value } : l)))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right text-xs font-semibold text-slate-800 tabular-nums"
+                />
+                <input
+                  aria-label={`Prix unitaire de la ligne ${index + 1}`}
+                  inputMode="decimal"
+                  placeholder="prix"
+                  value={ligne.prix}
+                  onChange={(e) =>
+                    setLignes(lignes.map((l, i) => (i === index ? { ...l, prix: e.target.value } : l)))
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right text-xs font-semibold text-slate-800 tabular-nums"
+                />
+                <button
+                  type="button"
+                  aria-label={`Retirer la ligne ${index + 1}`}
+                  onClick={() => setLignes(lignes.filter((_, i) => i !== index))}
+                  className="rounded-lg border border-slate-200 text-slate-400 hover:border-red-400 hover:text-red-600 font-bold"
+                >
+                  ×
+                </button>
               </div>
             </div>
           ))}
@@ -272,7 +272,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           <button
             type="button"
             onClick={() => setLignes([...lignes, { ...LIGNE_VIDE }])}
-            className="text-sm font-medium text-menthe-400 underline-offset-4 hover:underline"
+            className="text-xs font-bold text-indigo-600 hover:underline"
           >
             + Détailler en lignes
           </button>
@@ -283,14 +283,11 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
         >
-          {/* Une vente sans client reste parfaitement valide : elle compte
-              dans le chiffre d'affaires, simplement pas dans les classements
-              de clients. */}
-          <option value="" className="bg-ardoise-900">
+          <option value="">
             Vente anonyme
           </option>
           {clients.map((client) => (
-            <option key={client.id} value={client.id} className="bg-ardoise-900">
+            <option key={client.id} value={client.id}>
               {client.nom}
             </option>
           ))}
@@ -301,11 +298,11 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           value={moyen}
           onChange={(e) => setMoyen(e.target.value as MoyenPaiement | "")}
         >
-          <option value="" className="bg-ardoise-900">
+          <option value="">
             Non précisé
           </option>
           {MOYENS_PAIEMENT.map((code) => (
-            <option key={code} value={code} className="bg-ardoise-900">
+            <option key={code} value={code}>
               {LIBELLES_MOYEN_PAIEMENT[code]}
             </option>
           ))}
@@ -324,67 +321,71 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           <button
             type="button"
             onClick={reinitialiser}
-            className="w-full text-sm text-ardoise-400 underline-offset-4 hover:underline"
+            className="w-full text-xs font-semibold text-slate-500 hover:underline"
           >
             Annuler la modification
           </button>
         )}
       </form>
 
-      <section className="rounded-2xl border border-white/10 bg-ardoise-900 p-6">
-        <header className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-semibold">Ventes</h2>
-          <span className="text-sm text-ardoise-400">{total} enregistrée(s)</span>
+      <section className="bizly-card p-6">
+        <header className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-sm font-extrabold text-slate-900">Historique des Ventes</h2>
+          <span className="pill-tag pill-indigo">{total} enregistrée(s)</span>
         </header>
 
         {chargement ? (
-          <p className="text-sm text-ardoise-400">Chargement…</p>
+          <p className="text-xs font-medium text-slate-500 py-6 text-center">Chargement…</p>
         ) : ventes.length === 0 ? (
-          <p className="text-sm text-ardoise-400">
+          <p className="text-xs font-medium text-slate-500 py-6 text-center">
             Aucune vente pour l&apos;instant. Saisissez la première à gauche.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-ardoise-400">
+            <table className="w-full text-xs">
+              <thead className="text-left uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
                 <tr>
-                  <th className="pb-2 font-medium">N°</th>
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 text-right font-medium">Montant</th>
-                  <th className="pb-2 font-medium">Paiement</th>
-                  <th className="pb-2" />
+                  <th className="pb-3">N°</th>
+                  <th className="pb-3">Date</th>
+                  <th className="pb-3 text-right">Montant</th>
+                  <th className="pb-3">Paiement</th>
+                  <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {ventes.map((vente) => (
-                  <tr key={vente.id} className="border-t border-white/5">
-                    <td className="py-2 tabular-nums text-ardoise-400">{vente.numero}</td>
-                    <td className="py-2 tabular-nums">{vente.date_locale}</td>
-                    <td className="py-2 text-right font-medium tabular-nums">
+                  <tr key={vente.id} className="hover:bg-slate-50/50 transition">
+                    <td className="py-3 tabular-nums font-bold text-slate-400">#{vente.numero}</td>
+                    <td className="py-3 tabular-nums font-semibold text-slate-700">{vente.date_locale}</td>
+                    <td className="py-3 text-right font-extrabold tabular-nums text-slate-900">
                       {formaterMontant(vente.montant_total_mineur, devise)}
                       {vente.nombre_lignes > 0 && (
-                        <span className="ml-1 text-xs text-ardoise-400">
-                          ({vente.nombre_lignes} l.)
+                        <span className="ml-1.5 pill-tag pill-pink py-0.5 px-1.5">
+                          {vente.nombre_lignes} l.
                         </span>
                       )}
                     </td>
-                    <td className="py-2 text-ardoise-400">
-                      {vente.moyen_paiement === null
-                        ? "—"
-                        : LIBELLES_MOYEN_PAIEMENT[vente.moyen_paiement]}
+                    <td className="py-3">
+                      {vente.moyen_paiement === null ? (
+                        <span className="text-slate-400">—</span>
+                      ) : (
+                        <span className="pill-tag pill-cyan">
+                          {LIBELLES_MOYEN_PAIEMENT[vente.moyen_paiement]}
+                        </span>
+                      )}
                     </td>
-                    <td className="py-2 text-right whitespace-nowrap">
+                    <td className="py-3 text-right whitespace-nowrap space-x-2">
                       <button
                         type="button"
                         onClick={() => void editer(vente)}
-                        className="text-xs text-menthe-400 underline-offset-4 hover:underline"
+                        className="font-bold text-indigo-600 hover:underline"
                       >
                         modifier
                       </button>
                       <button
                         type="button"
                         onClick={() => void supprimer(vente)}
-                        className="ml-3 text-xs text-corail-400 underline-offset-4 hover:underline"
+                        className="font-bold text-red-600 hover:underline"
                       >
                         supprimer
                       </button>

@@ -747,3 +747,25 @@ npm test
 - **Gestion d'erreurs en environnement Vercel** : `server/src/config/env.ts` lève désormais une exception explicite au lieu de `process.exit(1)` si des variables manquent sur Vercel, afin de fournir un log détaillé dans le dashboard Vercel.
 - **Variables d'environnement requises sur Vercel** : configurer `DATABASE_URL` (chaîne de connexion Supabase pooler port 6543) et `DATABASE_SSL=require` dans **Project Settings > Environment Variables** sur Vercel.
 
+### Refonte Visuelle & Charte de Design Impeccable (29 août 2026)
+
+- **Documentation du Design System** : Création de `PRODUCT.md` (vision produit, 7 surfaces) et `DESIGN.md` (système visuel inspiré de la maquette de référence : cartes modulaires, pilules pastel, dégradés vibrants et typographie Outfit).
+- **Embellissement du Frontend (`web/` & `admin/`)** :
+  - Mise à jour des tokens CSS (`web/src/index.css` & `admin/src/index.css`) pour une expérience utilisateur haut de gamme et responsive.
+  - Integration des images du dossier `Photos/` (`web/public/photos/`) dans les widgets d'accueil, bannières et avatars d'équipe.
+  - Détection mécanique Impeccable sans aucun anti-pattern (`node detect.mjs` = `[]`).
+- **Validation** : `npm run typecheck` propre, 372/372 tests vitest validés et bundles `npm run build` construits sans erreur.
+
+### Intégration des Composants UI Interactifs (29 août 2026)
+
+- **Composants ajoutés dans `web/src/components/ui/`** :
+  - [`handwriting-svg.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/handwriting-svg.tsx) : Écriture manuscrite vectorielle animée avec `framer-motion` & `opentype.js`.
+  - [`water-ripple-image.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/water-ripple-image.tsx) : Effet d'ondulation d'eau interactif sur canvas WebGL.
+  - [`oceanic-currents.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/oceanic-currents.tsx) : Shader de fond animé avec distorsion FBM et OKLab.
+- **Support shadcn/ui & Helper `cn`** : [`web/src/lib/utils.ts`](file:///c:/Users/USER/Desktop/Bizly/web/src/lib/utils.ts) configuré avec `clsx` & `tailwind-merge`.
+- **Correction du Titre "Tableau de bord", Responsive Mobile & Image Épurée** :
+  - **Correction du Titre "Tableau de bord"** ([`handwriting-svg.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/handwriting-svg.tsx), [`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Calcul automatique de la largeur SVG proportionnelle au ViewBox de la police pour afficher intégralement « Tableau de bord » sans aucun tronquage.
+  - **Image Flottante Épurée au Bas du Dashboard** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Suppression de la boîte sombre, des titres et des badges de texte environnants. L'image ondulante (`growth.jfif`) est affichée directement avec une taille idéale (`max-w-xl h-64 sm:h-80 rounded-2xl shadow-2xl`), élégamment centrée tout au bas de la page.
+  - **Optimisation Mobile Responsive** ([`Accueil.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/Accueil.tsx), [`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Adaptation complète des en-têtes, de la navigation à défilement horizontal fluide, et des grilles d'indicateurs pour smartphones.
+- **Validation** : `npm run typecheck` propre (0 erreur), 372/372 tests Vitest validés, `npm run build` exécuté avec succès.
+

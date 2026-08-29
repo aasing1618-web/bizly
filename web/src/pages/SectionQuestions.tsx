@@ -12,16 +12,10 @@ import {
 } from "@bizly/shared";
 import { appelApi, ErreurApiClient } from "../lib/api";
 import { formaterDateLocale } from "../lib/tableauDeBord";
+import { HandwritingSvg } from "@/components/ui/handwriting-svg";
 
 const PERIODES: ClePeriode[] = ["jour", "semaine", "mois", "trimestre", "annee"];
 
-/**
- * Les questions intelligentes.
- *
- * Chaque carte affiche la réponse **ou** la raison pour laquelle elle n'est pas
- * calculable. Jamais un zéro à la place d'une donnée manquante : c'est la règle
- * qui gouverne tout le moteur.
- */
 export function SectionQuestions({ devise }: { devise: Devise }) {
   const [periode, setPeriode] = useState<ClePeriode>("mois");
   const [donnees, setDonnees] = useState<ReponseQuestions | null>(null);
@@ -51,51 +45,82 @@ export function SectionQuestions({ devise }: { devise: Devise }) {
 
   return (
     <div className="space-y-6">
-      <nav className="flex flex-wrap gap-2" aria-label="Période">
-        {PERIODES.map((cle) => (
-          <button
-            key={cle}
-            type="button"
-            onClick={() => setPeriode(cle)}
-            aria-pressed={periode === cle}
-            className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-              periode === cle
-                ? "border-menthe-400/60 bg-menthe-400/10 text-slate-100"
-                : "border-white/10 text-ardoise-400 hover:border-white/25 hover:text-slate-200"
-            }`}
-          >
-            {LIBELLES_PERIODE[cle]}
-          </button>
-        ))}
-      </nav>
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 p-6 md:p-8 text-white shadow-xl">
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="pill-tag bg-white/10 text-amber-300 border-white/20">
+                💡 Moteur de Décision Bizly
+              </span>
+              <span className="text-xs font-semibold text-purple-200">14 indicateurs clés</span>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <HandwritingSvg
+                text="Questions Intelligentes"
+                width={360}
+                height={70}
+                fontSize={38}
+                strokeWidth={1.5}
+                duration={2.5}
+                className="text-amber-400"
+              />
+            </div>
+            <p className="text-xs text-purple-100 max-w-xl font-medium leading-relaxed">
+              Des réponses formulées directement en français sans calcul à la main pour guider vos choix stratégiques.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="flex flex-wrap gap-2" aria-label="Période">
+          {PERIODES.map((cle) => (
+            <button
+              key={cle}
+              type="button"
+              onClick={() => setPeriode(cle)}
+              aria-pressed={periode === cle}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                periode === cle
+                  ? "pill-tag pill-indigo shadow-xs scale-105"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              {LIBELLES_PERIODE[cle]}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {erreur !== null && (
         <div
           role="alert"
-          className="rounded-lg border border-corail-400/40 bg-corail-400/10 px-3 py-2.5 text-sm text-corail-400"
+          className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700 shadow-xs"
         >
           {erreur}
         </div>
       )}
 
       {donnees === null ? (
-        <p className="py-12 text-center text-sm text-ardoise-400" role="status">
-          {chargement ? "Analyse en cours…" : "Aucune donnée."}
-        </p>
+        <div className="bizly-card p-12 text-center text-sm font-medium text-slate-500" role="status">
+          {chargement ? "Analyse financière en cours…" : "Aucune donnée disponible."}
+        </div>
       ) : (
-        <div className={chargement ? "opacity-60 transition-opacity" : "transition-opacity"}>
-          <p className="text-sm text-ardoise-400">
-            Du <strong className="text-slate-200">{formaterDateLocale(donnees.periode.debut_local)}</strong>{" "}
-            au <strong className="text-slate-200">{formaterDateLocale(donnees.periode.fin_local)}</strong>
+        <div className={chargement ? "opacity-60 transition-opacity space-y-6" : "transition-opacity space-y-6"}>
+          <header className="flex flex-wrap items-center justify-between gap-3 bizly-card p-4">
+            <p className="text-xs font-semibold text-slate-600">
+              Du <strong className="text-slate-900">{formaterDateLocale(donnees.periode.debut_local)}</strong> au{" "}
+              <strong className="text-slate-900">{formaterDateLocale(donnees.periode.fin_local)}</strong>
+            </p>
             {donnees.comparaison.a_date && (
-              <span className="ml-2 rounded bg-white/5 px-1.5 py-0.5 text-xs">
-                comparé au {formaterDateLocale(donnees.comparaison.debut_local)} –{" "}
-                {formaterDateLocale(donnees.comparaison.fin_local)}
+              <span className="pill-tag pill-indigo text-xs">
+                comparé au {formaterDateLocale(donnees.comparaison.debut_local)} – {formaterDateLocale(donnees.comparaison.fin_local)}
               </span>
             )}
-          </p>
+          </header>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {donnees.questions.map((question) => (
               <CarteQuestion key={question.id} question={question} devise={devise} />
             ))}
@@ -108,26 +133,29 @@ export function SectionQuestions({ devise }: { devise: Devise }) {
 
 function CarteQuestion({ question, devise }: { question: Question; devise: Devise }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-white/10 bg-ardoise-900 p-5">
-      <h3 className="text-sm font-medium text-slate-200">{question.question}</h3>
+    <article className="bizly-card p-6 flex flex-col justify-between relative overflow-hidden group">
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3 className="text-xs font-bold text-slate-900 leading-snug">{question.question}</h3>
+          <span className={`pill-tag ${question.disponible ? "pill-indigo" : "pill-amber"}`}>
+            {question.disponible ? "Calculé" : "Info"}
+          </span>
+        </div>
 
-      {/* La réponse en une phrase, formulée par le serveur. Elle vient AVANT
-          les chiffres : c'est elle qui répond réellement à la question posée,
-          le détail chiffré est là pour vérifier. */}
-      <p
-        className={`mt-2 text-sm leading-relaxed ${
-          question.disponible ? "text-slate-300" : "text-ardoise-400"
-        }`}
-      >
-        {question.phrase}
-      </p>
+        <p
+          className={`mt-2 text-xs leading-relaxed font-medium ${
+            question.disponible ? "text-slate-700" : "text-slate-400 italic"
+          }`}
+        >
+          {question.phrase}
+        </p>
 
-      <div className="mt-4 grow">
-        {question.disponible && <Reponse question={question} devise={devise} />}
+        <div className="mt-4 grow">
+          {question.disponible && <Reponse question={question} devise={devise} />}
+        </div>
       </div>
 
-      {/* Traçabilité : d'un chiffre affiché on remonte à la règle qui l'a produit. */}
-      <p className="mt-4 text-[0.7rem] uppercase tracking-wide text-ardoise-400/60">
+      <p className="mt-4 pt-3 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-400">
         {question.formule}
       </p>
     </article>
@@ -140,8 +168,8 @@ function Reponse({ question, devise }: { question: Question; devise: Devise }) {
   return (
     <div className="space-y-3">
       {indicateur !== undefined && (
-        <div>
-          <p className="text-2xl font-semibold tabular-nums tracking-tight">
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+          <p className="text-xl font-extrabold text-slate-900 tabular-nums tracking-tight">
             {indicateur.valeur === null
               ? VALEUR_NON_CALCULABLE
               : formaterMontant(indicateur.valeur, devise)}
@@ -152,22 +180,22 @@ function Reponse({ question, devise }: { question: Question; devise: Devise }) {
 
       {classement !== undefined &&
         (classement.length === 0 ? (
-          <p className="text-sm text-menthe-400">Aucun — tout le monde a acheté récemment.</p>
+          <p className="text-xs font-semibold text-emerald-600">Aucun — tout le monde a acheté récemment.</p>
         ) : (
-          <ol className="space-y-1.5 text-sm">
+          <ol className="space-y-2 text-xs">
             {classement.map((element, rang) => (
-              <li key={element.id} className="flex items-baseline justify-between gap-3">
-                <span className="truncate">
-                  <span className="mr-2 text-ardoise-400 tabular-nums">{rang + 1}.</span>
+              <li key={element.id} className="flex items-center justify-between gap-3 py-1 border-b border-slate-100 last:border-0">
+                <span className="truncate font-semibold text-slate-800">
+                  <span className="mr-2 pill-tag pill-indigo py-0.5 px-1.5 tabular-nums">{rang + 1}</span>
                   {element.libelle}
                   {element.ex_aequo === true && (
-                    <span className="ml-1.5 text-xs text-ardoise-400">ex æquo</span>
+                    <span className="ml-1.5 text-[10px] text-slate-400">ex æquo</span>
                   )}
                 </span>
-                <span className="shrink-0 tabular-nums font-medium">
+                <span className="shrink-0 tabular-nums font-extrabold text-slate-900">
                   {valeurAffichee(element, devise)}
                   {element.part_dixiemes !== undefined && (
-                    <span className="ml-2 text-xs font-normal text-ardoise-400">
+                    <span className="ml-1.5 pill-tag pill-pink py-0.5 px-1">
                       {formaterPourcent(element.part_dixiemes, { signe: false })}
                     </span>
                   )}
@@ -178,11 +206,11 @@ function Reponse({ question, devise }: { question: Question; devise: Devise }) {
         ))}
 
       {complements !== undefined && complements.length > 0 && (
-        <dl className="space-y-0.5 border-t border-white/5 pt-2 text-xs text-ardoise-400">
+        <dl className="space-y-1 border-t border-slate-100 pt-2 text-[11px]">
           {complements.map((complement) => (
             <div key={complement.libelle} className="flex justify-between gap-3">
-              <dt className="truncate">{complement.libelle}</dt>
-              <dd className="shrink-0 tabular-nums text-slate-200">
+              <dt className="truncate text-slate-500 font-medium">{complement.libelle}</dt>
+              <dd className="shrink-0 tabular-nums font-bold text-slate-900">
                 {complement.unite === "montant"
                   ? formaterMontant(complement.valeur, devise)
                   : new Intl.NumberFormat("fr-FR").format(complement.valeur)}
@@ -218,11 +246,9 @@ function Evolution({
   const { evolution_pourcent, evolution_montant, base_nulle } = indicateur;
 
   if (base_nulle) {
-    return <p className="mt-1 text-xs text-ardoise-400">nouveau sur cette période</p>;
+    return <p className="mt-1 text-xs font-semibold text-slate-400">nouveau sur cette période</p>;
   }
 
-  // Signe traversé : le serveur ne rend pas de pourcentage, seul le montant est
-  // lisible (spécification métier §3.5).
   const secondaire =
     evolution_pourcent !== null
       ? { texte: formaterPourcent(evolution_pourcent), signe: evolution_pourcent }
@@ -233,11 +259,11 @@ function Evolution({
           }
         : null;
 
-  if (secondaire === null) return <p className="mt-1 text-xs text-ardoise-400">—</p>;
+  if (secondaire === null) return <p className="mt-1 text-xs text-slate-400">—</p>;
 
   return (
     <p
-      className={`mt-1 text-xs ${secondaire.signe >= 0 ? "text-menthe-400" : "text-corail-400"}`}
+      className={`mt-1 text-xs font-bold ${secondaire.signe >= 0 ? "text-emerald-600" : "text-red-600"}`}
     >
       {secondaire.texte}
     </p>

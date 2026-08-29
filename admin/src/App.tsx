@@ -19,9 +19,9 @@ export function App() {
 
   if (etat.phase === "chargement") {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-ardoise-950 text-slate-100">
-        <p className="text-sm text-ardoise-400" role="status">
-          Chargement…
+      <main className="flex min-h-dvh items-center justify-center bg-slate-50 text-slate-800 font-sans">
+        <p className="text-xs font-semibold text-slate-500" role="status">
+          Chargement de la console…
         </p>
       </main>
     );
@@ -29,9 +29,9 @@ export function App() {
 
   if (etat.phase === "indisponible") {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-ardoise-950 p-6 text-slate-100">
+      <main className="flex min-h-dvh items-center justify-center bg-slate-50 p-6 text-slate-800 font-sans">
         <Carte titre="Service indisponible">
-          <p className="text-sm text-ardoise-400">{etat.message}</p>
+          <p className="text-xs font-semibold text-slate-500">{etat.message}</p>
         </Carte>
       </main>
     );
@@ -40,48 +40,58 @@ export function App() {
   if (etat.phase === "anonyme") return <Connexion connecter={connecter} />;
 
   return (
-    <div className="min-h-dvh bg-ardoise-950 text-slate-100">
-      <header className="border-b border-white/10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-ambre-400">
-              Administration
-            </p>
-            <h1 className="text-lg font-semibold tracking-tight">Console Bizly</h1>
+    <div className="min-h-dvh bg-slate-50 text-slate-800 font-sans">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold text-lg shadow-xs">
+              🛡️
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-extrabold tracking-tight text-slate-900">Console Bizly</h1>
+                <span className="pill-tag pill-amber">Super Admin</span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">Administration & Supervision</p>
+            </div>
           </div>
+
           <div className="flex items-center gap-4">
-            <span className="hidden text-sm text-ardoise-400 sm:inline">{etat.admin.nom}</span>
+            <span className="text-xs font-semibold text-slate-700">{etat.admin.nom}</span>
             <button
               type="button"
               onClick={() => void deconnecter()}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-sm transition hover:border-white/25"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-xs transition hover:bg-slate-50 hover:text-slate-900"
             >
-              Se déconnecter
+              Déconnexion
             </button>
           </div>
         </div>
 
-        <nav className="mx-auto flex max-w-6xl gap-1 px-6" aria-label="Sections">
+        <nav className="mx-auto flex max-w-6xl gap-2 px-6 pt-1 pb-2" aria-label="Sections">
           {(
             [
-              ["entreprises", "Entreprises"],
-              ["etat", "État du service"],
+              ["entreprises", "🏢 Entreprises", "pill-amber"],
+              ["etat", "⚡ État du service", "pill-indigo"],
             ] as const
-          ).map(([cle, libelle]) => (
-            <button
-              key={cle}
-              type="button"
-              onClick={() => setOnglet(cle)}
-              aria-current={onglet === cle ? "page" : undefined}
-              className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
-                onglet === cle
-                  ? "border-ambre-400 text-slate-100"
-                  : "border-transparent text-ardoise-400 hover:text-slate-200"
-              }`}
-            >
-              {libelle}
-            </button>
-          ))}
+          ).map(([cle, libelle, stylePilule]) => {
+            const estActif = onglet === cle;
+            return (
+              <button
+                key={cle}
+                type="button"
+                onClick={() => setOnglet(cle)}
+                aria-current={estActif ? "page" : undefined}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+                  estActif
+                    ? `${stylePilule} shadow-xs scale-105`
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {libelle}
+              </button>
+            );
+          })}
         </nav>
       </header>
 
@@ -119,23 +129,23 @@ function EtatService() {
 
   return (
     <Carte titre="État du service">
-      {echec && <p className="text-corail-400">Serveur injoignable.</p>}
-      {!echec && sante === null && <p className="text-ardoise-400">Chargement…</p>}
+      {echec && <p className="text-xs font-semibold text-red-600">Serveur injoignable.</p>}
+      {!echec && sante === null && <p className="text-xs font-medium text-slate-500 py-4">Chargement…</p>}
       {sante !== null && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-8 gap-y-2 text-sm">
-          <dt className="text-ardoise-400">Statut</dt>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 text-xs">
+          <dt className="text-slate-500 font-semibold">Statut</dt>
           <dd>
             <Etiquette ton={sante.statut === "ok" ? "positif" : "alerte"}>{sante.statut}</Etiquette>
           </dd>
-          <dt className="text-ardoise-400">Version</dt>
-          <dd className="font-medium tabular-nums">{sante.version}</dd>
-          <dt className="text-ardoise-400">Base de données</dt>
-          <dd className="font-medium">
+          <dt className="text-slate-500 font-semibold">Version</dt>
+          <dd className="font-bold tabular-nums text-slate-900">{sante.version}</dd>
+          <dt className="text-slate-500 font-semibold">Base de données</dt>
+          <dd className="font-bold text-slate-900">
             {sante.base.statut}
             {sante.base.latence_ms !== null && ` · ${sante.base.latence_ms} ms`}
           </dd>
-          <dt className="text-ardoise-400">En ligne depuis</dt>
-          <dd className="font-medium tabular-nums">
+          <dt className="text-slate-500 font-semibold">En ligne depuis</dt>
+          <dd className="font-bold tabular-nums text-slate-900">
             {Math.floor(sante.uptime_s / 60)} min
           </dd>
         </dl>

@@ -120,11 +120,14 @@ export function SectionDepenses({ devise }: { devise: Devise }) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
       <form
         onSubmit={soumettre}
-        className="h-fit space-y-4 rounded-2xl border border-white/10 bg-ardoise-900 p-6"
+        className="h-fit space-y-4 bizly-card p-6"
       >
-        <h2 className="font-semibold">
-          {enEdition === null ? "Nouvelle dépense" : "Modifier la dépense"}
-        </h2>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-sm font-extrabold text-slate-900">
+            {enEdition === null ? "Nouvelle dépense" : "Modifier la dépense"}
+          </h2>
+          <span className="pill-tag pill-amber">Dépenses</span>
+        </div>
 
         {erreur !== null && <Alerte>{erreur}</Alerte>}
 
@@ -143,11 +146,11 @@ export function SectionDepenses({ devise }: { devise: Devise }) {
           value={categorieId}
           onChange={(e) => setCategorieId(e.target.value)}
         >
-          <option value="" className="bg-ardoise-900">
+          <option value="">
             Non catégorisée
           </option>
           {categories.map((categorie) => (
-            <option key={categorie.id} value={categorie.id} className="bg-ardoise-900">
+            <option key={categorie.id} value={categorie.id}>
               {categorie.libelle}
             </option>
           ))}
@@ -165,11 +168,11 @@ export function SectionDepenses({ devise }: { devise: Devise }) {
           value={moyen}
           onChange={(e) => setMoyen(e.target.value as MoyenPaiement | "")}
         >
-          <option value="" className="bg-ardoise-900">
+          <option value="">
             Non précisé
           </option>
           {MOYENS_PAIEMENT.map((code) => (
-            <option key={code} value={code} className="bg-ardoise-900">
+            <option key={code} value={code}>
               {LIBELLES_MOYEN_PAIEMENT[code]}
             </option>
           ))}
@@ -188,58 +191,64 @@ export function SectionDepenses({ devise }: { devise: Devise }) {
           <button
             type="button"
             onClick={reinitialiser}
-            className="w-full text-sm text-ardoise-400 underline-offset-4 hover:underline"
+            className="w-full text-xs font-semibold text-slate-500 hover:underline"
           >
             Annuler la modification
           </button>
         )}
       </form>
 
-      <section className="rounded-2xl border border-white/10 bg-ardoise-900 p-6">
-        <header className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-semibold">Dépenses</h2>
-          <span className="text-sm text-ardoise-400">{total} enregistrée(s)</span>
+      <section className="bizly-card p-6">
+        <header className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-sm font-extrabold text-slate-900">Historique des Dépenses</h2>
+          <span className="pill-tag pill-amber">{total} enregistrée(s)</span>
         </header>
 
         {chargement ? (
-          <p className="text-sm text-ardoise-400">Chargement…</p>
+          <p className="text-xs font-medium text-slate-500 py-6 text-center">Chargement…</p>
         ) : depenses.length === 0 ? (
-          <p className="text-sm text-ardoise-400">
+          <p className="text-xs font-medium text-slate-500 py-6 text-center">
             Aucune dépense pour l&apos;instant. Saisissez la première à gauche.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-ardoise-400">
+            <table className="w-full text-xs">
+              <thead className="text-left uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
                 <tr>
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 text-right font-medium">Montant</th>
-                  <th className="pb-2 font-medium">Catégorie</th>
-                  <th className="pb-2 font-medium">Fournisseur</th>
-                  <th className="pb-2" />
+                  <th className="pb-3">Date</th>
+                  <th className="pb-3 text-right">Montant</th>
+                  <th className="pb-3">Catégorie</th>
+                  <th className="pb-3">Fournisseur</th>
+                  <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {depenses.map((depense) => (
-                  <tr key={depense.id} className="border-t border-white/5">
-                    <td className="py-2 tabular-nums">{depense.date_locale}</td>
-                    <td className="py-2 text-right font-medium tabular-nums">
+                  <tr key={depense.id} className="hover:bg-slate-50/50 transition">
+                    <td className="py-3 tabular-nums font-semibold text-slate-700">{depense.date_locale}</td>
+                    <td className="py-3 text-right font-extrabold tabular-nums text-slate-900">
                       {formaterMontant(depense.montant_mineur, devise)}
                     </td>
-                    <td className="py-2 text-ardoise-400">{depense.categorie?.libelle ?? "—"}</td>
-                    <td className="py-2 text-ardoise-400">{depense.fournisseur ?? "—"}</td>
-                    <td className="py-2 text-right whitespace-nowrap">
+                    <td className="py-3">
+                      {depense.categorie?.libelle ? (
+                        <span className="pill-tag pill-amber">{depense.categorie.libelle}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 font-medium text-slate-600">{depense.fournisseur ?? "—"}</td>
+                    <td className="py-3 text-right whitespace-nowrap space-x-2">
                       <button
                         type="button"
                         onClick={() => editer(depense)}
-                        className="text-xs text-menthe-400 underline-offset-4 hover:underline"
+                        className="font-bold text-indigo-600 hover:underline"
                       >
                         modifier
                       </button>
                       <button
                         type="button"
                         onClick={() => void supprimer(depense)}
-                        className="ml-3 text-xs text-corail-400 underline-offset-4 hover:underline"
+                        className="font-bold text-red-600 hover:underline"
                       >
                         supprimer
                       </button>

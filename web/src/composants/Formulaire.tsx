@@ -30,7 +30,7 @@ export function Champ({ libelle, erreur, aide, ...props }: ChampProps) {
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-200">
+      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
         {libelle}
       </label>
       <input
@@ -38,18 +38,18 @@ export function Champ({ libelle, erreur, aide, ...props }: ChampProps) {
         {...props}
         aria-invalid={erreur !== undefined}
         {...(decrivePar === "" ? {} : { "aria-describedby": decrivePar })}
-        className={`w-full rounded-lg border bg-black/30 px-3 py-2.5 text-slate-100
-          placeholder:text-ardoise-400/60 outline-none transition
-          focus:ring-2 focus:ring-menthe-400/40
-          ${erreur === undefined ? "border-white/10 focus:border-menthe-400/60" : "border-corail-400/60"}`}
+        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 font-medium
+          placeholder:text-slate-400 outline-none transition-all shadow-xs
+          focus:ring-3 focus:ring-indigo-500/15
+          ${erreur === undefined ? "border-slate-200 focus:border-indigo-500" : "border-red-400 focus:border-red-500"}`}
       />
       {aide !== undefined && erreur === undefined && (
-        <p id={idAide} className="text-xs text-ardoise-400">
+        <p id={idAide} className="text-xs text-slate-500">
           {aide}
         </p>
       )}
       {erreur !== undefined && (
-        <p id={idErreur} className="text-xs text-corail-400">
+        <p id={idErreur} className="text-xs font-semibold text-red-600">
           {erreur}
         </p>
       )}
@@ -68,20 +68,20 @@ export function Liste({ libelle, erreur, children, ...props }: ListeProps) {
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-200">
+      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
         {libelle}
       </label>
       <select
         id={id}
         {...props}
         aria-invalid={erreur !== undefined}
-        className={`w-full rounded-lg border bg-black/30 px-3 py-2.5 text-slate-100 outline-none
-          transition focus:ring-2 focus:ring-menthe-400/40
-          ${erreur === undefined ? "border-white/10 focus:border-menthe-400/60" : "border-corail-400/60"}`}
+        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 font-medium outline-none
+          transition-all shadow-xs focus:ring-3 focus:ring-indigo-500/15
+          ${erreur === undefined ? "border-slate-200 focus:border-indigo-500" : "border-red-400 focus:border-red-500"}`}
       >
         {children}
       </select>
-      {erreur !== undefined && <p className="text-xs text-corail-400">{erreur}</p>}
+      {erreur !== undefined && <p className="text-xs font-semibold text-red-600">{erreur}</p>}
     </div>
   );
 }
@@ -96,11 +96,11 @@ export function Bouton({
       type="submit"
       {...props}
       disabled={charge === true || props.disabled === true}
-      className="w-full rounded-lg bg-menthe-400 px-4 py-2.5 font-semibold text-ardoise-950
-        transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-menthe-400/50
-        disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 px-4 py-3 font-bold text-white shadow-md
+        transition-all hover:brightness-105 active:scale-[0.99] focus:outline-none focus:ring-3 focus:ring-indigo-500/30
+        disabled:cursor-not-allowed disabled:opacity-60 text-sm"
     >
-      {charge ? "Un instant…" : children}
+      {charge ? "Vérification en cours…" : children}
     </button>
   );
 }
@@ -110,7 +110,7 @@ export function Alerte({ children }: { children: ReactNode }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-corail-400/40 bg-corail-400/10 px-3 py-2.5 text-sm text-corail-400"
+      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 shadow-xs"
     >
       {children}
     </div>

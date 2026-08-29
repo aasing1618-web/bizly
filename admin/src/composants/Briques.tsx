@@ -16,11 +16,14 @@ import { useId } from "react";
 
 export function Carte({ titre, children }: { titre?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-ardoise-900 p-6">
+    <section className="bizly-card p-6">
       {titre !== undefined && (
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-[0.16em] text-ardoise-400">
-          {titre}
-        </h2>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            {titre}
+          </h2>
+          <span className="pill-tag pill-amber">Console Admin</span>
+        </div>
       )}
       {children}
     </section>
@@ -38,22 +41,22 @@ export function Champ({ libelle, erreur, aide, ...props }: ChampProps) {
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-200">
+      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
         {libelle}
       </label>
       <input
         id={id}
         {...props}
         aria-invalid={erreur !== undefined}
-        className={`w-full rounded-lg border bg-black/30 px-3 py-2.5 text-slate-100
-          placeholder:text-ardoise-400/60 outline-none transition
-          focus:ring-2 focus:ring-ambre-400/40
-          ${erreur === undefined ? "border-white/10 focus:border-ambre-400/60" : "border-corail-400/60"}`}
+        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 font-medium
+          placeholder:text-slate-400 outline-none transition-all shadow-xs
+          focus:ring-3 focus:ring-amber-500/20
+          ${erreur === undefined ? "border-slate-200 focus:border-amber-500" : "border-red-400 focus:border-red-500"}`}
       />
       {aide !== undefined && erreur === undefined && (
-        <p className="text-xs text-ardoise-400">{aide}</p>
+        <p className="text-xs text-slate-500">{aide}</p>
       )}
-      {erreur !== undefined && <p className="text-xs text-corail-400">{erreur}</p>}
+      {erreur !== undefined && <p className="text-xs font-semibold text-red-600">{erreur}</p>}
     </div>
   );
 }
@@ -68,15 +71,15 @@ export function Liste({ libelle, children, ...props }: ListeProps) {
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-xs font-medium text-ardoise-400">
+      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
         {libelle}
       </label>
       <select
         id={id}
         {...props}
-        className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm
-          text-slate-100 outline-none transition focus:border-ambre-400/60 focus:ring-2
-          focus:ring-ambre-400/40"
+        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium
+          text-slate-900 outline-none transition-all shadow-xs focus:border-amber-500 focus:ring-3
+          focus:ring-amber-500/20"
       >
         {children}
       </select>
@@ -95,17 +98,17 @@ export function Bouton({
   children: ReactNode;
 }) {
   const styles = {
-    principal: "bg-ambre-400 text-ardoise-950 hover:brightness-110",
-    discret: "border border-white/15 text-slate-200 hover:border-white/35",
-    danger: "border border-corail-400/50 text-corail-400 hover:bg-corail-400/10",
+    principal: "bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-md hover:brightness-105",
+    discret: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold shadow-xs",
+    danger: "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-semibold shadow-xs",
   }[variante];
 
   return (
     <button
       {...props}
       disabled={charge || props.disabled === true}
-      className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition
-        focus:outline-none focus:ring-2 focus:ring-ambre-400/50
+      className={`rounded-xl px-4 py-2.5 text-xs transition-all active:scale-[0.99]
+        focus:outline-none focus:ring-3 focus:ring-amber-500/30
         disabled:cursor-not-allowed disabled:opacity-60 ${styles}`}
     >
       {charge ? "Un instant…" : children}
@@ -117,7 +120,7 @@ export function Alerte({ children }: { children: ReactNode }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-corail-400/40 bg-corail-400/10 px-3 py-2.5 text-sm text-corail-400"
+      className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 shadow-xs"
     >
       {children}
     </div>
@@ -128,9 +131,9 @@ export function Confirmation({ children }: { children: ReactNode }) {
   return (
     <p
       role="status"
-      className="rounded-lg border border-menthe-400/40 bg-menthe-400/10 px-3 py-2.5 text-sm text-menthe-400"
+      className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xs"
     >
-      {children}
+      ✓ {children}
     </p>
   );
 }
@@ -143,12 +146,12 @@ export function Etiquette({
   children: ReactNode;
 }) {
   const styles = {
-    neutre: "border-white/15 text-ardoise-400",
-    positif: "border-menthe-400/40 text-menthe-400",
-    alerte: "border-corail-400/40 text-corail-400",
+    neutre: "pill-indigo",
+    positif: "pill-emerald",
+    alerte: "pill-red",
   }[ton];
 
   return (
-    <span className={`rounded border px-1.5 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
+    <span className={`pill-tag ${styles}`}>{children}</span>
   );
 }
