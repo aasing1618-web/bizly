@@ -766,5 +766,10 @@ npm test
 - **Renommage du Titre et de l'Onglet en "Dashboard" & Push GitHub** :
   - **Titre & Onglet « Dashboard »** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx), [`Accueil.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/Accueil.tsx)) : Modification du libellé pour afficher uniquement **Dashboard** (au lieu de Tableau de bord), garantissant un rendu moderne, sobre et sans aucune tronquage.
   - **Publication Git / GitHub** : Modifications validées et envoyées sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel déploie automatiquement la version finale.
-- **Validation** : `npm run typecheck` propre (0 erreur), 372/372 tests Vitest validés, `npm run build` exécuté avec succès.
+- **Module de Paiement & Abonnement Mobile Money (Wave & Orange Money)** (29 août 2026) :
+  - **Migration `0006_abonnements_paiements.sql`** : Table `abonnements` et colonne `entreprises.date_expiration_plan` ajoutées.
+  - **Module backend `/api/paiement/`** : Initialisation des abonnements Starter Pro (2 500 FCFA/mois ou 25 000 FCFA/an) et Business (5 000 FCFA/mois ou 50 000 FCFA/an), Webhook de confirmation et simulation instantanée.
+  - **Interface utilisateur dans `SectionParametres.tsx`** : Choix du cycle (mensuel/annuel), sélection du plan (Pro/Business), choix du moyen de paiement (🌊 Wave / 🟠 Orange Money) et simulation de paiement en 1 clic.
+  - **Validation** : `npm run typecheck` à 0 erreur sur les 4 workspaces, 377/377 tests Vitest validés, `npm run build` OK.
+
 

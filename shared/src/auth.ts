@@ -48,6 +48,7 @@ export type EntreprisePublique = {
   fuseau: string;
   plan: Plan;
   statut: StatutCompte;
+  date_expiration_plan?: string | null;
 };
 
 /** Réponse de `POST /api/inscription`, `POST /api/connexion` et `GET /api/moi`. */

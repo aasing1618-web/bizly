@@ -40,11 +40,16 @@ import { creerDepotReferentiels } from "./modules/referentiels/depot.js";
  * (`http/limiteurBase.ts`).
  */
 
+import { creerDepotPaiement } from "./modules/paiement/depot.js";
+import { creerServicePaiement } from "./modules/paiement/service.js";
+
 definirNiveauJournal(enProduction ? "info" : "debug");
 
 const depotCatalogue = creerDepotCatalogue(pool);
 const depotAuth = creerDepotPg(pool);
 const depotAdmin = creerDepotAdmin(pool);
+const depotPaiement = creerDepotPaiement(pool);
+const servicePaiement = creerServicePaiement(depotPaiement);
 
 /**
  * Racine des bundles front.
@@ -60,6 +65,7 @@ export const app = creerApp({
   serviceAuth: creerServiceAuth({ depot: depotAuth }),
   serviceOperations: creerServiceOperations(creerDepotOperations(pool), depotCatalogue),
   serviceAdmin: creerServiceAdmin({ depot: depotAdmin }),
+  servicePaiement,
   depotAuth,
   depotKpi: creerDepotKpi(pool),
   depotCatalogue,
@@ -67,6 +73,7 @@ export const app = creerApp({
   depotEntreprise: creerDepotEntreprise(pool),
   depotReferentiels: creerDepotReferentiels(pool),
   depotAdmin,
+  depotPaiement,
   creerLimiteur: creerFabriqueLimiteurBase(pool),
   version: lireVersion(),
   demarreLe: Date.now(),

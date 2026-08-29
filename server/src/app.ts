@@ -28,11 +28,16 @@ import type { ServiceOperations } from "./modules/operations/service.js";
 import { creerRouteurSante } from "./routes/health.js";
 import { monterStatiques } from "./statiques.js";
 
+import { creerRouteurPaiement } from "./modules/paiement/routes.js";
+import type { ServicePaiement } from "./modules/paiement/service.js";
+import type { DepotPaiement } from "./modules/paiement/depot.js";
+
 export type DependancesApp = {
   sonderBase: SondeBase;
   serviceAuth: ServiceAuth;
   serviceOperations: ServiceOperations;
   serviceAdmin: ServiceAdmin;
+  servicePaiement: ServicePaiement;
   depotAuth: DepotAuth;
   depotKpi: DepotKpi;
   depotCatalogue: DepotCatalogue;
@@ -40,6 +45,7 @@ export type DependancesApp = {
   depotEntreprise: DepotEntreprise;
   depotReferentiels: DepotReferentiels;
   depotAdmin: DepotAdmin;
+  depotPaiement: DepotPaiement;
   /**
    * Fabrique de limiteurs de débit.
    *
@@ -133,6 +139,13 @@ export function creerApp(deps: DependancesApp): Express {
   );
   api.use(creerRouteurKpi({ serviceAuth: deps.serviceAuth, depot: deps.depotKpi }));
   api.use(creerRouteurQuestions({ serviceAuth: deps.serviceAuth, depot: deps.depotQuestions }));
+  api.use(
+    creerRouteurPaiement({
+      serviceAuth: deps.serviceAuth,
+      servicePaiement: deps.servicePaiement,
+      depotPaiement: deps.depotPaiement,
+    }),
+  );
   api.use(routeApiIntrouvable);
 
   app.use("/api", api);

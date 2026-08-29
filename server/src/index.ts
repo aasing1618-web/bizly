@@ -26,6 +26,9 @@ import { definirNiveauJournal, detaillerErreur, journal } from "./http/journal.j
  * `creerApp` sous forme de dépendance, pour que l'application reste testable.
  */
 
+import { creerDepotPaiement } from "./modules/paiement/depot.js";
+import { creerServicePaiement } from "./modules/paiement/service.js";
+
 definirNiveauJournal(enProduction ? "info" : "debug");
 
 const demarreLe = Date.now();
@@ -34,12 +37,15 @@ const version = lireVersion();
 const depotCatalogue = creerDepotCatalogue(pool);
 const depotAuth = creerDepotPg(pool);
 const depotAdmin = creerDepotAdmin(pool);
+const depotPaiement = creerDepotPaiement(pool);
+const servicePaiement = creerServicePaiement(depotPaiement);
 
 const app = creerApp({
   sonderBase: creerSondeBase(pool),
   serviceAuth: creerServiceAuth({ depot: depotAuth }),
   serviceOperations: creerServiceOperations(creerDepotOperations(pool), depotCatalogue),
   serviceAdmin: creerServiceAdmin({ depot: depotAdmin }),
+  servicePaiement,
   depotAuth,
   depotKpi: creerDepotKpi(pool),
   depotCatalogue,
@@ -47,6 +53,7 @@ const app = creerApp({
   depotEntreprise: creerDepotEntreprise(pool),
   depotReferentiels: creerDepotReferentiels(pool),
   depotAdmin,
+  depotPaiement,
   // Limitation partagée en base. Sur un hébergeur sans état, plusieurs
   // instances répondent aux mêmes requêtes : un compteur en mémoire accorderait
   // le quota complet à chacune, et la défense contre la force brute

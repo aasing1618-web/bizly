@@ -7,3 +7,4 @@ export * from "./montant.js";
 export * from "./operations.js";
 export * from "./questions.js";
 export * from "./referentiels.js";
+export * from "./paiement.js";
