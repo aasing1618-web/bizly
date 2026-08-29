@@ -28,7 +28,7 @@ export type OptionsRouteurOperations = {
 /** Contexte d'entreprise, extrait de la session. */
 function entrepriseDe(requete: Request): ContexteEntreprise {
   const { entreprise } = contexteDe(requete);
-  return { id: entreprise.id, fuseau: entreprise.fuseau };
+  return { id: entreprise.id, fuseau: entreprise.fuseau, plan: entreprise.plan };
 }
 
 /**

@@ -252,5 +252,15 @@ export function creerDepotOperationsMemoire(): DepotOperationsMemoire {
     async categorieAppartient(_entrepriseId, categorieId) {
       return CATEGORIES_PAR_DEFAUT.some((c) => c.id === categorieId);
     },
+
+    async compterVentesMois(entrepriseId) {
+      const debutMois = new Date();
+      debutMois.setDate(1);
+      debutMois.setHours(0, 0, 0, 0);
+
+      return visiblesVentes(entrepriseId).filter(
+        (v) => v.vente.effectuee_le >= debutMois,
+      ).length;
+    },
   };
 }

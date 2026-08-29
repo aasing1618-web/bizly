@@ -17,6 +17,7 @@ export const CODES_ERREUR = [
   "ROUTE_INTROUVABLE",
   "CONFLIT",
   "TROP_DE_REQUETES",
+  "LIMITE_PLAN_ATTEINTE",
   "ERREUR_INTERNE",
 ] as const;
 

@@ -116,7 +116,13 @@ export function Accueil({ session, deconnecter, appliquer }: AccueilProps) {
         <main className="lg:col-span-3">
           {onglet === "tableau" && <TableauDeBord devise={entreprise.devise} />}
           {onglet === "questions" && <SectionQuestions devise={entreprise.devise} />}
-          {onglet === "ventes" && <SectionVentes devise={entreprise.devise} />}
+          {onglet === "ventes" && (
+            <SectionVentes
+              devise={entreprise.devise}
+              plan={entreprise.plan}
+              onAllerAuxParametres={() => setOnglet("parametres")}
+            />
+          )}
           {onglet === "depenses" && <SectionDepenses devise={entreprise.devise} />}
           {onglet === "catalogue" && <SectionCatalogue devise={entreprise.devise} />}
           {onglet === "parametres" && (

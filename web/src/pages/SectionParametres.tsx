@@ -507,15 +507,35 @@ function BlocAbonnement({
               <div>
                 <span className="text-xs text-slate-400">Moyen de paiement</span>
                 <p className="font-semibold text-slate-200">
-                  {transaction.moyen_paiement === "wave" ? "🌊 Wave" : "🟠 Orange Money"}
+                  {transaction.moyen_paiement === "wave" ? "🌊 Wave Mobile" : "🟠 Orange Money"}
                 </p>
               </div>
-              <div className="col-span-2 rounded-xl bg-amber-400/10 p-3 border border-amber-400/20 text-center">
-                <span className="text-xs text-amber-300 uppercase tracking-wider">Montant total</span>
-                <p className="text-2xl font-black text-amber-400">
+              <div className="col-span-2 rounded-xl bg-amber-400/10 p-3.5 border border-amber-400/20 text-center">
+                <span className="text-xs text-amber-300 uppercase tracking-wider font-semibold">Montant à régler</span>
+                <p className="text-3xl font-black text-amber-400 mt-1">
                   {transaction.montant.toLocaleString()} {transaction.devise}
                 </p>
               </div>
+            </div>
+
+            {/* Instructions spécifiques Mobile Money */}
+            <div className="rounded-xl bg-slate-950 p-4 border border-slate-800 text-xs space-y-2">
+              <h4 className="font-bold text-amber-300 flex items-center gap-1.5">
+                <span>📱</span> Instructions de règlement {transaction.moyen_paiement === "wave" ? "Wave" : "Orange Money"}
+              </h4>
+              {transaction.moyen_paiement === "wave" ? (
+                <p className="text-slate-300 leading-relaxed">
+                  1. Ouvrez l'application <strong>Wave</strong> sur votre téléphone.<br />
+                  2. Scannez ou confirmez le transfert de <strong>{transaction.montant.toLocaleString()} FCFA</strong> vers la référence <code className="text-amber-300 font-mono bg-slate-900 px-1 py-0.5 rounded">{transaction.reference_transaction}</code>.<br />
+                  3. Cliquez sur le bouton ci-dessous pour valider l'activation instantanée.
+                </p>
+              ) : (
+                <p className="text-slate-300 leading-relaxed">
+                  1. Tapez le code USSD <strong>#144#</strong> ou ouvrez l'application <strong>Orange Money</strong>.<br />
+                  2. Approuvez le paiement de <strong>{transaction.montant.toLocaleString()} FCFA</strong>.<br />
+                  3. Cliquez sur le bouton ci-dessous dès que le débit est confirmé.
+                </p>
+              )}
             </div>
 
             <div className="pt-2 space-y-2">
@@ -523,16 +543,16 @@ function BlocAbonnement({
                 type="button"
                 onClick={simulerConfirmation}
                 disabled={chargement}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg text-sm"
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg text-sm flex items-center justify-center gap-2"
               >
-                {chargement ? "Confirmation en cours..." : "Simuler la validation du paiement (Wave / Orange Money)"}
+                {chargement ? "Validation en cours..." : "✓ Confirmer et Activer l'Abonnement Pro (Wave / OM)"}
               </button>
               <button
                 type="button"
                 onClick={() => setTransaction(null)}
                 className="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
               >
-                Annuler
+                Annuler et choisir un autre moyen
               </button>
             </div>
           </div>

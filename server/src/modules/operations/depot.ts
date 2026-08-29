@@ -137,6 +137,7 @@ export type DepotOperations = {
 
   listerCategories(entrepriseId: string): Promise<CategorieDepense[]>;
   categorieAppartient(entrepriseId: string, categorieId: string): Promise<boolean>;
+  compterVentesMois(entrepriseId: string): Promise<number>;
 };
 
 // ---------------------------------------------------------------------------
@@ -524,6 +525,18 @@ export function creerDepotOperations(pool: Pool): DepotOperations {
         [categorieId, entrepriseId],
       );
       return resultat.rowCount === 1;
+    },
+
+    async compterVentesMois(entrepriseId) {
+      const resultat = await pool.query<{ total: bigint }>(
+        `SELECT count(*) AS total
+           FROM ventes
+          WHERE entreprise_id = $1
+            AND supprime_le IS NULL
+            AND effectuee_le >= date_trunc('month', now())`,
+        [entrepriseId],
+      );
+      return versNombre(resultat.rows[0]?.total);
     },
   };
 }

@@ -22,7 +22,13 @@ type LigneSaisie = { produitId: string; libelle: string; quantite: string; prix:
 
 const LIGNE_VIDE: LigneSaisie = { produitId: "", libelle: "", quantite: "1", prix: "" };
 
-export function SectionVentes({ devise }: { devise: Devise }) {
+export type SectionVentesProps = {
+  devise: Devise;
+  plan?: string;
+  onAllerAuxParametres?: () => void;
+};
+
+export function SectionVentes({ devise, plan = "free", onAllerAuxParametres }: SectionVentesProps) {
   const [ventes, setVentes] = useState<Vente[]>([]);
   const [total, setTotal] = useState(0);
   const [chargement, setChargement] = useState(true);
@@ -158,11 +164,41 @@ export function SectionVentes({ devise }: { devise: Devise }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
-      <form
-        onSubmit={soumettre}
-        className="h-fit space-y-4 bizly-card p-6"
-      >
+    <div className="space-y-6">
+      {plan === "free" && total >= 25 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 p-5 shadow-lg space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="text-sm font-bold text-amber-400">
+                  {total >= 30
+                    ? "Limite du plan Gratuit atteinte (30 / 30 ventes)"
+                    : `Attention : ${total} / 30 ventes enregistrées ce mois-ci`}
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Passez au plan Starter Pro (2 500 FCFA/mois) pour débloquer les ventes illimitées et encaisser facilement via Wave ou Orange Money.
+                </p>
+              </div>
+            </div>
+            {onAllerAuxParametres && (
+              <button
+                type="button"
+                onClick={onAllerAuxParametres}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all shadow-md shrink-0"
+              >
+                Passer au Plan Pro (2 500 FCFA) →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
+        <form
+          onSubmit={soumettre}
+          className="h-fit space-y-4 bizly-card p-6"
+        >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h2 className="text-sm font-extrabold text-slate-900">
             {enEdition === null ? "Nouvelle vente" : "Modifier la vente"}
@@ -397,6 +433,7 @@ export function SectionVentes({ devise }: { devise: Devise }) {
           </div>
         )}
       </section>
+    </div>
     </div>
   );
 }

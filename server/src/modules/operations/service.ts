@@ -5,7 +5,7 @@ import type {
   Vente,
   VenteDetaillee,
 } from "@bizly/shared";
-import { erreurs } from "../../http/erreurs.js";
+import { ErreurApi, erreurs } from "../../http/erreurs.js";
 import {
   analyserQuantite,
   enNombreSur,
@@ -22,11 +22,15 @@ import {
 import type { DepotCatalogue, LigneProduitDb } from "../catalogue/depot.js";
 import type {
   DepotOperations,
+  EntreeDepenseDb,
   EntreeLigneDb,
+  EntreeVenteDb,
   FiltresDepot,
   LigneDepenseDb,
   LigneDetailDb,
   LigneVenteDb,
+  PatchDepenseDb,
+  PatchVenteDb,
 } from "./depot.js";
 import type {
   CreationDepenseValidee,
@@ -50,6 +54,7 @@ import type {
 export type ContexteEntreprise = {
   id: string;
   fuseau: string;
+  plan?: string;
 };
 
 export type ServiceOperations = {
@@ -330,6 +335,18 @@ export function creerServiceOperations(
     },
 
     async creerVente(ctx, corps) {
+      if (ctx.plan === "free") {
+        const nombreVentes = await depot.compterVentesMois(ctx.id);
+        if (nombreVentes >= 30) {
+          throw new ErreurApi(
+            403,
+            "LIMITE_PLAN_ATTEINTE",
+            "Vous avez atteint la limite de 30 ventes mensuelles du plan Gratuit (Découverte). Passez à la formule Pro (2 500 FCFA/mois) pour débloquer les ventes illimitées avec Wave ou Orange Money.",
+            { limite: 30, actuel: nombreVentes, plan_requis: "pro" },
+          );
+        }
+      }
+
       await verifierClient(ctx, corps.client_id);
       const { lignes, total } = await preparerLignes(ctx, corps.lignes, corps.montant_total_mineur);
 

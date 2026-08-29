@@ -37,7 +37,7 @@ export function creerRouteurPaiement(options: OptionsRouteurPaiement): Router {
   const entrepriseDe = (requete: Request): string => contexteDe(requete).entreprise.id;
 
   // Initialiser la transaction de paiement (Wave, Orange Money)
-  routeur.post("/paiement/initialiser", protege, async (requete, reponse) => {
+  routeur.post(["/paiement/initialiser", "/initialiser"], protege, async (requete, reponse) => {
     const corps = analyser(schemaInitialiser, requete.body);
     try {
       const res = await servicePaiement.initialiserPaiement(entrepriseDe(requete), corps);
@@ -51,7 +51,7 @@ export function creerRouteurPaiement(options: OptionsRouteurPaiement): Router {
   });
 
   // Webhook public appelé par la passerelle de paiement
-  routeur.post("/paiement/webhook", async (requete, reponse) => {
+  routeur.post(["/paiement/webhook", "/webhook"], async (requete, reponse) => {
     const corps = analyser(schemaWebhook, requete.body);
     try {
       const res = await servicePaiement.traiterWebhook({
@@ -70,7 +70,7 @@ export function creerRouteurPaiement(options: OptionsRouteurPaiement): Router {
   });
 
   // Simulation instantanée de confirmation de paiement (Dev / Demo)
-  routeur.post("/paiement/simuler-confirmation", protege, async (requete, reponse) => {
+  routeur.post(["/paiement/simuler-confirmation", "/simuler-confirmation"], protege, async (requete, reponse) => {
     const corps = analyser(schemaSimuler, requete.body);
     try {
       const res = await servicePaiement.simulerConfirmation(entrepriseDe(requete), corps.reference_transaction);
@@ -84,7 +84,7 @@ export function creerRouteurPaiement(options: OptionsRouteurPaiement): Router {
   });
 
   // Statut de l'abonnement actif
-  routeur.get("/paiement/statut", protege, async (requete, reponse) => {
+  routeur.get(["/paiement/statut", "/statut"], protege, async (requete, reponse) => {
     const entrepriseId = entrepriseDe(requete);
     const abo = await depotPaiement.lireAbonnementActif(entrepriseId);
     const session = contexteDe(requete);
