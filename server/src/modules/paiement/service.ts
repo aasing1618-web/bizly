@@ -5,6 +5,7 @@ import {
   type ReponseInitialiserPaiement,
 } from "@bizly/shared";
 import type { DepotPaiement } from "./depot.js";
+import { creerSessionPaiementWave } from "./wave.js";
 
 export class ErreurPaiement extends Error {
   constructor(
@@ -57,7 +58,23 @@ export function creerServicePaiement(depot: DepotPaiement): ServicePaiement {
         referenceTransaction,
       });
 
-      const urlCheckout = `/checkout?ref=${abo.reference_transaction}&provider=${moyen_paiement}&amount=${montant}`;
+      let urlCheckout = `/checkout?ref=${abo.reference_transaction}&provider=${moyen_paiement}&amount=${montant}`;
+
+      if (moyen_paiement === "wave" && process.env["WAVE_API_KEY"]) {
+        try {
+          const baseUrl = process.env["BIZLY_BASE_URL"] || "http://localhost:3000";
+          const sessionWave = await creerSessionPaiementWave({
+            montant,
+            devise: "XOF",
+            referenceTransaction: abo.reference_transaction,
+            urlSucces: `${baseUrl}/app?paiement=succes&ref=${abo.reference_transaction}`,
+            urlAnnulation: `${baseUrl}/app?paiement=annule&ref=${abo.reference_transaction}`,
+          });
+          urlCheckout = sessionWave.wave_launch_url;
+        } catch (err) {
+          console.warn("Wave API fallback:", err instanceof Error ? err.message : String(err));
+        }
+      }
 
       return {
         reference_transaction: abo.reference_transaction,
