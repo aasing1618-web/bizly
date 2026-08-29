@@ -72,7 +72,11 @@ function lireEnvOuSortir(): Env {
   try {
     return lireEnv(process.env);
   } catch (cause) {
-    process.stderr.write(`\n${cause instanceof Error ? cause.message : String(cause)}\n\n`);
+    const msg = cause instanceof Error ? cause.message : String(cause);
+    process.stderr.write(`\n${msg}\n\n`);
+    if (process.env["VERCEL"]) {
+      throw cause instanceof Error ? cause : new Error(msg);
+    }
     process.exit(1);
   }
 }

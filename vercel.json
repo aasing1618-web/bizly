@@ -7,7 +7,7 @@
   "regions": ["fra1"],
   "functions": {
     "api/index.js": {
-      "includeFiles": "{server/**,db/**,package.json}",
+      "includeFiles": "{server/**,shared/**,db/**,package.json}",
       "maxDuration": 15
     }
   },

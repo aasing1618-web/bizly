@@ -740,3 +740,10 @@ Vérifications :
 npm run typecheck
 npm test
 ```
+
+### Note de Déploiement Vercel (29 août 2026)
+
+- **Correction du bundle Serverless** : `vercel.json` mis à jour (`includeFiles`: `{server/**,shared/**,db/**,package.json}`) pour inclure l'espace de travail `@bizly/shared` obligatoire à l'exécution de `api/index.js`.
+- **Gestion d'erreurs en environnement Vercel** : `server/src/config/env.ts` lève désormais une exception explicite au lieu de `process.exit(1)` si des variables manquent sur Vercel, afin de fournir un log détaillé dans le dashboard Vercel.
+- **Variables d'environnement requises sur Vercel** : configurer `DATABASE_URL` (chaîne de connexion Supabase pooler port 6543) et `DATABASE_SSL=require` dans **Project Settings > Environment Variables** sur Vercel.
+

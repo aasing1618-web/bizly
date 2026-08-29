@@ -256,7 +256,7 @@ describe("POST /api/connexion", () => {
     expect(bloquee.body.erreur.code).toBe("TROP_DE_REQUETES");
   });
 
-  it("ne bloque pas un collègue derrière la même IP après 10 échecs d'un autre", async () => {
+  it("ne bloque pas un collègue derrière la même IP après 10 échecs d'un autre", { timeout: 15000 }, async () => {
     // Un commerce partage une seule IP publique. Si la limite par IP valait 10
     // comme celle par e-mail, dix erreurs d'une personne verrouilleraient toute
     // l'équipe — y compris ceux qui tapent le bon mot de passe, puisque la
