@@ -84,7 +84,7 @@ export function Accueil({ session, deconnecter, appliquer }: AccueilProps) {
         <nav className="mx-auto flex max-w-7xl gap-2 px-4 sm:px-6 pt-1 pb-2 overflow-x-auto whitespace-nowrap scrollbar-none" aria-label="Sections">
           {(
             [
-              ["tableau", "📊 Tableau de bord", "pill-pink"],
+              ["tableau", "📊 Dashboard", "pill-pink"],
               ["questions", "💡 Questions Intelligentes", "pill-indigo"],
               ["ventes", "📈 Ventes", "pill-emerald"],
               ["depenses", "💳 Dépenses", "pill-amber"],

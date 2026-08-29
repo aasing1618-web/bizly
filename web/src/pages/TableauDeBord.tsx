@@ -56,7 +56,7 @@ export function TableauDeBord({ devise }: { devise: Devise }) {
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-amber-400 py-1">
-              Tableau de bord
+              Dashboard
             </h1>
             <p className="text-xs text-slate-300 max-w-xl font-medium leading-relaxed">
               Vue synthétique de votre activité commerciale, bénéfices nets et performance par produit.

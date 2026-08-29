@@ -763,9 +763,8 @@ npm test
   - [`water-ripple-image.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/water-ripple-image.tsx) : Effet d'ondulation d'eau interactif sur canvas WebGL.
   - [`oceanic-currents.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/oceanic-currents.tsx) : Shader de fond animé avec distorsion FBM et OKLab.
 - **Support shadcn/ui & Helper `cn`** : [`web/src/lib/utils.ts`](file:///c:/Users/USER/Desktop/Bizly/web/src/lib/utils.ts) configuré avec `clsx` & `tailwind-merge`.
-- **Correction du Titre "Tableau de bord", Responsive Mobile & Image Épurée** :
-  - **Correction du Titre "Tableau de bord"** ([`handwriting-svg.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/handwriting-svg.tsx), [`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Calcul automatique de la largeur SVG proportionnelle au ViewBox de la police pour afficher intégralement « Tableau de bord » sans aucun tronquage.
-  - **Image Flottante Épurée au Bas du Dashboard** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Suppression de la boîte sombre, des titres et des badges de texte environnants. L'image ondulante (`growth.jfif`) est affichée directement avec une taille idéale (`max-w-xl h-64 sm:h-80 rounded-2xl shadow-2xl`), élégamment centrée tout au bas de la page.
-  - **Optimisation Mobile Responsive** ([`Accueil.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/Accueil.tsx), [`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Adaptation complète des en-têtes, de la navigation à défilement horizontal fluide, et des grilles d'indicateurs pour smartphones.
+- **Titre HTML Explicit "Tableau de bord" & Push GitHub** :
+  - **Titre « Tableau de bord »** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Remplacement par une balise `<h1>` explicite en typographie HTML stylisée (`text-amber-400 font-black`), garantissant un affichage 100 % complet et lisible sans aucune coupure.
+  - **Deploiement Git / GitHub** : Commit et Push effectués avec succès sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel redéploie automatiquement.
 - **Validation** : `npm run typecheck` propre (0 erreur), 372/372 tests Vitest validés, `npm run build` exécuté avec succès.
 
