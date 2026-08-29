@@ -763,8 +763,8 @@ npm test
   - [`water-ripple-image.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/water-ripple-image.tsx) : Effet d'ondulation d'eau interactif sur canvas WebGL.
   - [`oceanic-currents.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/components/ui/oceanic-currents.tsx) : Shader de fond animé avec distorsion FBM et OKLab.
 - **Support shadcn/ui & Helper `cn`** : [`web/src/lib/utils.ts`](file:///c:/Users/USER/Desktop/Bizly/web/src/lib/utils.ts) configuré avec `clsx` & `tailwind-merge`.
-- **Titre HTML Explicit "Tableau de bord" & Push GitHub** :
-  - **Titre « Tableau de bord »** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx)) : Remplacement par une balise `<h1>` explicite en typographie HTML stylisée (`text-amber-400 font-black`), garantissant un affichage 100 % complet et lisible sans aucune coupure.
-  - **Deploiement Git / GitHub** : Commit et Push effectués avec succès sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel redéploie automatiquement.
+- **Renommage du Titre et de l'Onglet en "Dashboard" & Push GitHub** :
+  - **Titre & Onglet « Dashboard »** ([`TableauDeBord.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/TableauDeBord.tsx), [`Accueil.tsx`](file:///c:/Users/USER/Desktop/Bizly/web/src/pages/Accueil.tsx)) : Modification du libellé pour afficher uniquement **Dashboard** (au lieu de Tableau de bord), garantissant un rendu moderne, sobre et sans aucune tronquage.
+  - **Publication Git / GitHub** : Modifications validées et envoyées sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel déploie automatiquement la version finale.
 - **Validation** : `npm run typecheck` propre (0 erreur), 372/372 tests Vitest validés, `npm run build` exécuté avec succès.
 
