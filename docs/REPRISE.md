@@ -3,8 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 29 août 2026 — Vague 5 livrée. Le périmètre du MVP
-(`CLAUDE.md` §3) est complet ; l'application est prête à être testée.**
+**Dernière mise à jour : 29 août 2026 — Module de paiement Mobile Money & Quota 30 ventes/mois du plan Gratuit intégrés.**
 
 > ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont les **fichiers
 > authentiques** transmis par le propriétaire, et non plus la reconstruction
@@ -16,14 +15,8 @@
 
 ## État en une phrase
 
-Les **sept modules du MVP** (`CLAUDE.md` §3) sont livrés et vérifiés contre la
-vraie base Supabase (PostgreSQL 17.6, `eu-central-1`, TLS authentifié) :
-entreprise, tableau de bord, ventes, dépenses, clients, produits, analyses —
-plus les Paramètres et une console d'administration. **372 tests automatisés**
-au vert. Un commerçant peut créer son compte **dans sa devise** (franc CFA, euro,
-dollar ou l'une des vingt autres), saisir son activité, lire ses indicateurs et
-obtenir des réponses en français à quatorze questions. Il reste à **le tester
-pour de vrai**, puis la Vague 5 du §10 : RLS Postgres et mise en ligne.
+Les **sept modules du MVP** (`CLAUDE.md` §3) ainsi que le **module d'abonnement & paiement Mobile Money (Wave & Orange Money)** et le **blocage Paywall du plan Gratuit (30 ventes/mois max)** sont entièrement livrés et vérifiés contre la vraie base Supabase :
+entreprise, tableau de bord, ventes, dépenses, clients, produits, analyses, paramètres, abonnements & paiements — plus les Paramètres et une console d'administration. **377 tests automatisés** au vert. Tout est poussé sur GitHub (`origin/main`). Vague 5 du §10 : RLS Postgres et mise en ligne.
 
 ### Pour démarrer un test complet
 
