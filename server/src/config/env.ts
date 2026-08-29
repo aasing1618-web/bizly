@@ -36,7 +36,7 @@ const schema = z.object({
   // cela ne doit pas empêcher le serveur de démarrer.
   DATABASE_CA_CERT: z.preprocess(
     (valeur) => (typeof valeur === "string" && valeur.trim() === "" ? undefined : valeur),
-    z.string().trim().min(1).optional(),
+    z.string().trim().min(1).default("db/supabase-root-2021-ca.crt"),
   ),
 });
 
