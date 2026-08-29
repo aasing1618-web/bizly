@@ -20,9 +20,17 @@ import {
  * provoquer — compte suspendu, session expirée, e-mail déjà pris.
  */
 
+/**
+ * Les devises connues du dépôt de test.
+ *
+ * Volontairement courte : elle couvre les trois cas de décimales — 2 (EUR,
+ * USD), 0 (XOF) et 3 (TND) — qui sont ce que le moteur doit savoir distinguer.
+ * Recopier les vingt devises de la base n'ajouterait aucun cas de test.
+ */
 const DEVISES: Record<string, number> = {
   EUR: 2,
   XOF: 0,
+  XAF: 0,
   TND: 3,
   USD: 2,
 };
@@ -39,7 +47,7 @@ const SECTEURS = new Set([
   "autre",
 ]);
 
-type Compte = {
+export type Compte = {
   utilisateur: UtilisateurPublic;
   entreprise: EntreprisePublique;
   mot_de_passe_hash: string;
@@ -63,6 +71,19 @@ export type DepotMemoire = DepotAuth & {
   expirerSessions(utilisateurId: string): void;
   nombreSessionsActives(utilisateurId: string): number;
   compte(email: string): Compte | undefined;
+
+  /**
+   * État partagé avec les autres dépôts en mémoire.
+   *
+   * `depotEntrepriseMemoire` et `depotAdminMemoire` travaillent sur **les mêmes
+   * objets** : sans cela, modifier une entreprise dans l'un la laisserait
+   * inchangée dans la session résolue par l'autre, et les tests vérifieraient
+   * une cohérence que le vrai code n'a pas.
+   */
+  tousLesComptes(): Compte[];
+  definirEmpreinteMotDePasse(utilisateurId: string, empreinte: string): void;
+  /** Révoque toutes les sessions de l'utilisateur sauf celle d'empreinte donnée. */
+  revoquerSessionsSauf(utilisateurId: string, empreinteHex: string | null): void;
 };
 
 export function creerDepotMemoire(): DepotMemoire {
@@ -102,11 +123,15 @@ export function creerDepotMemoire(): DepotMemoire {
         id: randomUUID(),
         nom: entree.entreprise.nom,
         secteur: entree.entreprise.secteur,
+        pays: entree.entreprise.pays,
         devise: {
           code: entree.entreprise.devise,
           decimales: DEVISES[entree.entreprise.devise] ?? 2,
         },
         fuseau: entree.entreprise.fuseau,
+        // Comme en base : toute entreprise naît en `free`, seul un
+        // administrateur change ce champ (CLAUDE.md §7.4).
+        plan: "free",
         statut: "ACTIF",
       };
 
@@ -206,6 +231,26 @@ export function creerDepotMemoire(): DepotMemoire {
 
     compte(email) {
       return trouver(email);
+    },
+
+    tousLesComptes() {
+      return comptes;
+    },
+
+    definirEmpreinteMotDePasse(utilisateurId, empreinte) {
+      const compte = comptes.find((c) => c.utilisateur.id === utilisateurId);
+      if (compte !== undefined) compte.mot_de_passe_hash = empreinte;
+
+      const secret = secrets.get(utilisateurId);
+      secrets.set(utilisateurId, { hash: empreinte, statut: secret?.statut ?? "ACTIF" });
+    },
+
+    revoquerSessionsSauf(utilisateurId, empreinteHex) {
+      for (const session of sessions) {
+        if (session.utilisateur_id === utilisateurId && session.empreinte !== empreinteHex) {
+          session.revoquee = true;
+        }
+      }
     },
   };
 }

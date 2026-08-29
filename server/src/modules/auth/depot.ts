@@ -1,5 +1,11 @@
 import type { Pool } from "pg";
-import type { EntreprisePublique, ReponseSession, Role, UtilisateurPublic } from "@bizly/shared";
+import type {
+  EntreprisePublique,
+  Plan,
+  ReponseSession,
+  Role,
+  UtilisateurPublic,
+} from "@bizly/shared";
 import { dansTransaction, estViolationUnicite } from "../../db/transaction.js";
 
 /**
@@ -20,7 +26,13 @@ export type CompteAvecSecret = {
 };
 
 export type EntreeInscription = {
-  entreprise: { nom: string; secteur: string; devise: string; fuseau: string };
+  entreprise: {
+    nom: string;
+    secteur: string;
+    pays: string | null;
+    devise: string;
+    fuseau: string;
+  };
   utilisateur: { nom: string; email: string; mot_de_passe_hash: string };
 };
 
@@ -75,9 +87,11 @@ type LigneCompte = {
   entreprise_id: string;
   entreprise_nom: string;
   secteur_code: string;
+  pays: string | null;
   devise_code: string;
   devise_decimales: number;
   fuseau: string;
+  plan: Plan;
   statut_entreprise: "ACTIF" | "SUSPENDU";
 };
 
@@ -95,8 +109,10 @@ function versEntreprise(ligne: LigneCompte): EntreprisePublique {
     id: ligne.entreprise_id,
     nom: ligne.entreprise_nom,
     secteur: ligne.secteur_code,
+    pays: ligne.pays,
     devise: { code: ligne.devise_code, decimales: ligne.devise_decimales },
     fuseau: ligne.fuseau,
+    plan: ligne.plan,
     statut: ligne.statut_entreprise,
   };
 }
@@ -118,9 +134,11 @@ const COLONNES_COMPTE = `
   e.id                AS entreprise_id,
   e.nom               AS entreprise_nom,
   e.secteur_code      AS secteur_code,
+  e.pays              AS pays,
   d.code              AS devise_code,
   d.decimales         AS devise_decimales,
   e.fuseau            AS fuseau,
+  e.plan              AS plan,
   e.statut            AS statut_entreprise
 `;
 
@@ -161,12 +179,13 @@ export function creerDepotPg(pool: Pool): DepotAuth {
       try {
         return await dansTransaction(pool, async (client) => {
           const entreprise = await client.query<{ id: string }>(
-            `INSERT INTO entreprises (nom, secteur_code, devise, fuseau)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO entreprises (nom, secteur_code, pays, devise, fuseau)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id`,
             [
               entree.entreprise.nom,
               entree.entreprise.secteur,
+              entree.entreprise.pays,
               entree.entreprise.devise,
               entree.entreprise.fuseau,
             ],

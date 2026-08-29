@@ -2,15 +2,9 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { margePourcent } from "@bizly/shared";
 import { creerApp } from "../../app.js";
-import type { EtatBase } from "../../db/sonde.js";
 import { definirNiveauJournal } from "../../http/journal.js";
-import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
-import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
+import { dependancesTest } from "../../test-utils/dependancesTest.js";
 import { creerDepotMemoire, type DepotMemoire } from "../../test-utils/depotMemoire.js";
-import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
-import { creerServiceAuth } from "../auth/service.js";
-import { creerServiceOperations } from "../operations/service.js";
-import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * Catalogue de produits et fichier clients, de bout en bout en HTTP.
@@ -30,19 +24,7 @@ afterAll(() => definirNiveauJournal("info"));
 
 beforeEach(() => {
   depotAuth = creerDepotMemoire();
-  const depotCatalogue = creerDepotCatalogueMemoire();
-  app = creerApp({
-    sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
-    serviceAuth: creerServiceAuth({ depot: depotAuth }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
-    depotKpi: creerDepotKpiMemoire(),
-    depotCatalogue,
-    depotQuestions: creerDepotQuestionsMemoire(),
-    version: "0.1.0-test",
-    demarreLe: Date.now(),
-    production: false,
-    racinePublic: null,
-  });
+  app = creerApp(dependancesTest({ depotAuth }));
 });
 
 async function inscrire(suffixe = "a"): Promise<string> {

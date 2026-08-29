@@ -5,9 +5,13 @@ import { creerApp } from "./app.js";
 import { RACINE_DEPOT, enProduction, env } from "./config/env.js";
 import { fermerPool, pool } from "./db/pool.js";
 import { creerSondeBase } from "./db/sonde.js";
+import { creerDepotAdmin } from "./modules/admin/depot.js";
+import { creerServiceAdmin } from "./modules/admin/service.js";
 import { creerDepotPg } from "./modules/auth/depot.js";
 import { creerServiceAuth } from "./modules/auth/service.js";
 import { creerDepotCatalogue } from "./modules/catalogue/depot.js";
+import { creerDepotEntreprise } from "./modules/entreprise/depot.js";
+import { creerDepotReferentiels } from "./modules/referentiels/depot.js";
 import { creerDepotKpi } from "./modules/kpi/depot.js";
 import { creerDepotOperations } from "./modules/operations/depot.js";
 import { creerDepotQuestions } from "./modules/questions/depot.js";
@@ -27,14 +31,21 @@ const demarreLe = Date.now();
 const version = lireVersion();
 
 const depotCatalogue = creerDepotCatalogue(pool);
+const depotAuth = creerDepotPg(pool);
+const depotAdmin = creerDepotAdmin(pool);
 
 const app = creerApp({
   sonderBase: creerSondeBase(pool),
-  serviceAuth: creerServiceAuth({ depot: creerDepotPg(pool) }),
+  serviceAuth: creerServiceAuth({ depot: depotAuth }),
   serviceOperations: creerServiceOperations(creerDepotOperations(pool), depotCatalogue),
+  serviceAdmin: creerServiceAdmin({ depot: depotAdmin }),
+  depotAuth,
   depotKpi: creerDepotKpi(pool),
   depotCatalogue,
   depotQuestions: creerDepotQuestions(pool),
+  depotEntreprise: creerDepotEntreprise(pool),
+  depotReferentiels: creerDepotReferentiels(pool),
+  depotAdmin,
   version,
   demarreLe,
   production: enProduction,

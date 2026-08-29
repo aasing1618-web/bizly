@@ -1,40 +1,69 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { MOT_DE_PASSE_LONGUEUR_MIN, type CorpsInscription } from "@bizly/shared";
+import { ChoixDevise } from "../composants/ChoixDevise";
 import { Alerte, Bouton, Champ, Liste } from "../composants/Formulaire";
 import { ErreurApiClient } from "../lib/api";
-
-/**
- * Secteurs proposés à l'inscription.
- *
- * Recopiés du référentiel `secteurs` : ils conditionnent les règles du moteur
- * de questions intelligentes. Le serveur reste seul juge — un code inconnu est
- * refusé en 400, cette liste n'est qu'un confort de saisie.
- */
-const SECTEURS = [
-  ["commerce_detail", "Commerce de détail"],
-  ["restauration", "Restauration, café, bar"],
-  ["services_pro", "Services professionnels et conseil"],
-  ["artisanat_btp", "Artisanat et BTP"],
-  ["beaute_bienetre", "Beauté et bien-être"],
-  ["sante", "Santé et paramédical"],
-  ["transport_logistique", "Transport et logistique"],
-  ["education_formation", "Éducation et formation"],
-  ["autre", "Autre activité"],
-] as const;
+import { paysProbable, useReferentiels } from "../lib/referentiels";
 
 export type InscriptionProps = {
   inscrire: (corps: CorpsInscription) => Promise<void>;
   versConnexion: () => void;
 };
 
+/**
+ * Création d'un compte : l'entreprise et son propriétaire, en une étape.
+ *
+ * Secteurs, devises et pays viennent de `GET /api/referentiels` — jamais d'une
+ * liste recopiée ici, qui finirait par proposer un code que le serveur refuse.
+ *
+ * Le **pays** est le seul champ de localisation demandé : il remplit la devise
+ * et le fuseau, tous deux modifiables ensuite. Poser trois questions là où une
+ * suffit est le contraire du principe « moins de champs » (CLAUDE.md §8).
+ */
 export function Inscription({ inscrire, versConnexion }: InscriptionProps) {
+  const referentiels = useReferentiels();
+
   const [nomEntreprise, setNomEntreprise] = useState("");
-  const [secteur, setSecteur] = useState<string>(SECTEURS[0][0]);
+  const [secteur, setSecteur] = useState("");
+  const [pays, setPays] = useState("");
+  const [devise, setDevise] = useState("");
+  // Une devise choisie à la main ne doit plus bouger quand on change de pays :
+  // sinon le choix explicite de l'utilisateur serait écrasé en silence.
+  const [deviseImposee, setDeviseImposee] = useState(false);
   const [nom, setNom] = useState("");
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<ErreurApiClient | null>(null);
   const [charge, setCharge] = useState(false);
+
+  // Valeurs de départ, une seule fois, dès que les référentiels arrivent.
+  const [prerempli, setPrerempli] = useState(false);
+  useEffect(() => {
+    if (referentiels.phase !== "prets" || prerempli) return;
+    setPrerempli(true);
+
+    const { secteurs, pays: listePays } = referentiels.donnees;
+    setSecteur(secteurs[0]?.code ?? "");
+
+    // Le fuseau du navigateur suffit à deviner le pays dans l'immense majorité
+    // des cas. On le propose, on ne l'impose pas.
+    const devine = paysProbable(listePays);
+    if (devine === null) return;
+
+    setPays(devine);
+    const trouve = listePays.find((candidat) => candidat.code === devine);
+    if (trouve !== undefined) setDevise(trouve.devise);
+  }, [referentiels, prerempli]);
+
+  function changerPays(code: string): void {
+    setPays(code);
+    if (deviseImposee) return;
+
+    if (referentiels.phase === "prets") {
+      const trouve = referentiels.donnees.pays.find((candidat) => candidat.code === code);
+      if (trouve !== undefined) setDevise(trouve.devise);
+    }
+  }
 
   async function soumettre(evenement: FormEvent) {
     evenement.preventDefault();
@@ -43,7 +72,12 @@ export function Inscription({ inscrire, versConnexion }: InscriptionProps) {
 
     try {
       await inscrire({
-        entreprise: { nom: nomEntreprise, secteur },
+        entreprise: {
+          nom: nomEntreprise,
+          secteur,
+          ...(pays === "" ? {} : { pays }),
+          ...(devise === "" ? {} : { devise }),
+        },
         utilisateur: { nom, email, mot_de_passe: motDePasse },
       });
     } catch (cause) {
@@ -57,11 +91,36 @@ export function Inscription({ inscrire, versConnexion }: InscriptionProps) {
     }
   }
 
-  // Un message d'erreur rattaché à un champ s'affiche sous ce champ ; le
-  // bandeau ne garde que ce qui ne vise aucun champ précis.
   const erreurChamp = (champ: string) => erreur?.messagePour(champ);
-  const erreurGenerale =
-    erreur !== null && erreur.champs.length === 0 ? erreur.message : null;
+  const erreurGenerale = erreur !== null && erreur.champs.length === 0 ? erreur.message : null;
+
+  if (referentiels.phase === "chargement") {
+    return (
+      <p className="py-8 text-center text-sm text-ardoise-400" role="status">
+        Chargement…
+      </p>
+    );
+  }
+
+  if (referentiels.phase === "echec") {
+    return (
+      <div className="space-y-4">
+        <Alerte>
+          Impossible de charger la liste des secteurs et des devises. Vérifiez votre connexion, puis
+          rechargez la page.
+        </Alerte>
+        <button
+          type="button"
+          onClick={versConnexion}
+          className="text-sm font-medium text-menthe-400 underline-offset-4 hover:underline"
+        >
+          Retour à la connexion
+        </button>
+      </div>
+    );
+  }
+
+  const { secteurs, devises, devises_rapides, pays: listePays } = referentiels.donnees;
 
   return (
     <form onSubmit={soumettre} className="space-y-5" noValidate>
@@ -97,12 +156,40 @@ export function Inscription({ inscrire, versConnexion }: InscriptionProps) {
           onChange={(e) => setSecteur(e.target.value)}
           erreur={erreurChamp("entreprise.secteur")}
         >
-          {SECTEURS.map(([code, libelle]) => (
-            <option key={code} value={code} className="bg-ardoise-900">
-              {libelle}
+          {secteurs.map((element) => (
+            <option key={element.code} value={element.code} className="bg-ardoise-900">
+              {element.libelle}
             </option>
           ))}
         </Liste>
+
+        <Liste
+          libelle="Pays"
+          name="pays"
+          value={pays}
+          onChange={(e) => changerPays(e.target.value)}
+          erreur={erreurChamp("entreprise.pays")}
+        >
+          <option value="" className="bg-ardoise-900">
+            — Choisir —
+          </option>
+          {listePays.map((element) => (
+            <option key={element.code} value={element.code} className="bg-ardoise-900">
+              {element.nom}
+            </option>
+          ))}
+        </Liste>
+
+        <ChoixDevise
+          devises={devises}
+          rapides={devises_rapides}
+          valeur={devise}
+          onChange={(code) => {
+            setDevise(code);
+            setDeviseImposee(true);
+          }}
+          erreur={erreurChamp("entreprise.devise")}
+        />
       </fieldset>
 
       <fieldset className="space-y-4">
@@ -146,7 +233,11 @@ export function Inscription({ inscrire, versConnexion }: InscriptionProps) {
         />
       </fieldset>
 
-      <Bouton charge={charge}>Créer mon compte</Bouton>
+      {/* La devise est le seul champ sans valeur par défaut acceptable : la
+          laisser vide ferait retomber le serveur sur l'euro, silencieusement. */}
+      <Bouton charge={charge} disabled={devise === ""}>
+        Créer mon compte
+      </Bouton>
 
       <p className="text-center text-sm text-ardoise-400">
         Vous avez déjà un compte ?{" "}

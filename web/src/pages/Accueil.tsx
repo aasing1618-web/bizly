@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { ReponseSession } from "@bizly/shared";
+import type { EntreprisePublique, ReponseSession, UtilisateurPublic } from "@bizly/shared";
 import { SectionCatalogue } from "./SectionCatalogue";
 import { SectionDepenses } from "./SectionDepenses";
+import { SectionParametres } from "./SectionParametres";
 import { SectionQuestions } from "./SectionQuestions";
 import { TableauDeBord } from "./TableauDeBord";
 import { SectionVentes } from "./SectionVentes";
@@ -9,18 +10,22 @@ import { SectionVentes } from "./SectionVentes";
 export type AccueilProps = {
   session: ReponseSession;
   deconnecter: () => Promise<void>;
+  appliquer: (partiel: {
+    entreprise?: EntreprisePublique;
+    utilisateur?: UtilisateurPublic;
+  }) => void;
 };
 
-type Onglet = "tableau" | "questions" | "ventes" | "depenses" | "catalogue";
+type Onglet = "tableau" | "questions" | "ventes" | "depenses" | "catalogue" | "parametres";
 
 /**
  * Coquille de l'application connectée.
  *
- * Trois onglets en état local plutôt qu'un routeur. Un vrai routeur deviendra
+ * Des onglets en état local plutôt qu'un routeur. Un vrai routeur deviendra
  * utile quand il y aura des URL à partager — un tableau de bord sur une période
  * précise, par exemple. Ce sera la finition (Vague 6).
  */
-export function Accueil({ session, deconnecter }: AccueilProps) {
+export function Accueil({ session, deconnecter, appliquer }: AccueilProps) {
   const { utilisateur, entreprise } = session;
   const [onglet, setOnglet] = useState<Onglet>("tableau");
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
@@ -64,6 +69,7 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
               ["ventes", "Ventes"],
               ["depenses", "Dépenses"],
               ["catalogue", "Catalogue"],
+              ["parametres", "Paramètres"],
             ] as const
           ).map(([cle, libelle]) => (
             <button
@@ -89,6 +95,13 @@ export function Accueil({ session, deconnecter }: AccueilProps) {
         {onglet === "ventes" && <SectionVentes devise={entreprise.devise} />}
         {onglet === "depenses" && <SectionDepenses devise={entreprise.devise} />}
         {onglet === "catalogue" && <SectionCatalogue devise={entreprise.devise} />}
+        {onglet === "parametres" && (
+          <SectionParametres
+            entreprise={entreprise}
+            utilisateur={utilisateur}
+            appliquer={appliquer}
+          />
+        )}
       </main>
     </div>
   );

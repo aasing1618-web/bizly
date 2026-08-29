@@ -16,7 +16,7 @@ import { Inscription } from "./pages/Inscription";
  * connecté et anonyme à chaque rechargement.
  */
 export function App() {
-  const { etat, connecter, inscrire, deconnecter } = useSession();
+  const { etat, connecter, inscrire, deconnecter, appliquer } = useSession();
   const [ecran, setEcran] = useState<"connexion" | "inscription">("connexion");
 
   if (etat.phase === "chargement") {
@@ -59,7 +59,9 @@ export function App() {
   }
 
   if (etat.phase === "connecte") {
-    return <Accueil session={etat.session} deconnecter={deconnecter} />;
+    return (
+      <Accueil session={etat.session} deconnecter={deconnecter} appliquer={appliquer} />
+    );
   }
 
   return (

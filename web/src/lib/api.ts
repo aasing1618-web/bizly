@@ -15,13 +15,28 @@ export class ErreurApiClient extends Error {
   readonly code: string;
   readonly statut: number;
   readonly champs: ChampInvalide[];
+  /**
+   * Le bloc `details` complet de la réponse.
+   *
+   * Certaines erreurs y joignent de quoi construire un message utile — les
+   * volumes enregistrés d'un refus de changement de devise, par exemple
+   * (docs/API-CONTRACT.md §8.2). Ne garder que `champs` les jetterait.
+   */
+  readonly details: Record<string, unknown>;
 
-  constructor(statut: number, code: string, message: string, champs: ChampInvalide[] = []) {
+  constructor(
+    statut: number,
+    code: string,
+    message: string,
+    champs: ChampInvalide[] = [],
+    details: Record<string, unknown> = {},
+  ) {
     super(message);
     this.name = "ErreurApiClient";
     this.statut = statut;
     this.code = code;
     this.champs = champs;
+    this.details = details;
   }
 
   /** Message associé à un champ précis, pour l'afficher sous le bon input. */
@@ -69,12 +84,13 @@ export async function appelApi<T>(chemin: string, options: OptionsAppel = {}): P
 
   if (!reponse.ok) {
     if (estReponseErreur(charge)) {
-      const details = charge.erreur.details as { champs?: ChampInvalide[] } | undefined;
+      const details = charge.erreur.details ?? {};
       throw new ErreurApiClient(
         reponse.status,
         charge.erreur.code,
         charge.erreur.message,
-        details?.champs ?? [],
+        (details as { champs?: ChampInvalide[] }).champs ?? [],
+        details,
       );
     }
     // Réponse d'erreur qui ne suit pas le contrat : ne jamais afficher du HTML

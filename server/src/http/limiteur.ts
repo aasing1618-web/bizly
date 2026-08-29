@@ -86,3 +86,14 @@ export function cleIp(ip: string | undefined): string {
 export function cleEmail(email: string): string {
   return `email:${email.trim().toLowerCase()}`;
 }
+
+/**
+ * Clé de limitation par utilisateur authentifié.
+ *
+ * Distincte de `cleIp` : le changement de mot de passe (§8.4) vise un compte
+ * précis, pas une machine. Un couple partageant une connexion ne doit pas se
+ * bloquer mutuellement.
+ */
+export function cleUtilisateur(utilisateurId: string): string {
+  return `utilisateur:${utilisateurId}`;
+}

@@ -77,6 +77,7 @@ export const schemaInscription = z.object({
   entreprise: z.object({
     nom: z.string().trim().min(1, "Le nom de l'entreprise est requis.").max(120),
     secteur: z.string().trim().min(1, "Le secteur est requis.").max(40),
+    pays: z.string().trim().toUpperCase().length(2).optional(),
     devise: z.string().trim().toUpperCase().length(3).optional(),
     fuseau: z.string().trim().min(1).max(64).optional(),
   }),
@@ -102,3 +103,12 @@ export type EntreeConnexionValidee = z.infer<typeof schemaConnexion>;
  * Les helpers de traduction zod -> erreur API vivent dans
  * `server/src/http/validation.ts` : ils servent à tous les modules.
  */
+
+/**
+ * Le schéma de robustesse du mot de passe, réexporté.
+ *
+ * Le changement de mot de passe (§8.4) et la réinitialisation par un
+ * administrateur (§9.4) doivent appliquer **exactement** les mêmes règles qu'à
+ * l'inscription. Les recopier ailleurs, c'est accepter qu'elles divergent.
+ */
+export const schemaMotDePasse = motDePasse;

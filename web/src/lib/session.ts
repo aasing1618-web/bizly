@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { CorpsConnexion, CorpsInscription, ReponseSession } from "@bizly/shared";
+import type {
+  CorpsConnexion,
+  CorpsInscription,
+  EntreprisePublique,
+  ReponseSession,
+  UtilisateurPublic,
+} from "@bizly/shared";
 import { appelApi, ErreurApiClient } from "./api";
 
 /**
@@ -60,5 +66,29 @@ export function useSession() {
     setEtat({ phase: "anonyme" });
   }, []);
 
-  return { etat, connecter, inscrire, deconnecter, rafraichir };
+  /**
+   * Applique une entreprise ou un utilisateur fraîchement modifiés.
+   *
+   * L'écran Paramètres reçoit la ressource à jour dans la réponse du `PATCH` :
+   * la reposer ici évite un aller-retour vers `/api/moi`, et surtout évite
+   * l'instant où l'en-tête affiche encore l'ancien nom.
+   */
+  const appliquer = useCallback(
+    (partiel: { entreprise?: EntreprisePublique; utilisateur?: UtilisateurPublic }) => {
+      setEtat((actuel) =>
+        actuel.phase === "connecte"
+          ? {
+              phase: "connecte",
+              session: {
+                utilisateur: partiel.utilisateur ?? actuel.session.utilisateur,
+                entreprise: partiel.entreprise ?? actuel.session.entreprise,
+              },
+            }
+          : actuel,
+      );
+    },
+    [],
+  );
+
+  return { etat, connecter, inscrire, deconnecter, rafraichir, appliquer };
 }

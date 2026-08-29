@@ -1,15 +1,9 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { creerApp } from "../../app.js";
-import type { EtatBase } from "../../db/sonde.js";
 import { definirNiveauJournal } from "../../http/journal.js";
+import { dependancesTest } from "../../test-utils/dependancesTest.js";
 import { creerDepotMemoire, type DepotMemoire } from "../../test-utils/depotMemoire.js";
-import { creerDepotOperationsMemoire } from "../../test-utils/depotOperationsMemoire.js";
-import { creerServiceOperations } from "../../modules/operations/service.js";
-import { creerServiceAuth } from "./service.js";
-import { creerDepotKpiMemoire } from "../../test-utils/depotKpiMemoire.js";
-import { creerDepotCatalogueMemoire } from "../../test-utils/depotCatalogueMemoire.js";
-import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoire.js";
 
 /**
  * Tests de bout en bout de l'authentification, sans Postgres.
@@ -23,20 +17,7 @@ import { creerDepotQuestionsMemoire } from "../../test-utils/depotQuestionsMemoi
 const MOT_DE_PASSE = "correct-cheval-pile-agrafe";
 
 function monter(depot: DepotMemoire) {
-  const depotCatalogue = creerDepotCatalogueMemoire();
-
-  return creerApp({
-    sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
-    serviceAuth: creerServiceAuth({ depot }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
-    depotKpi: creerDepotKpiMemoire(),
-    depotCatalogue,
-    depotQuestions: creerDepotQuestionsMemoire(),
-    version: "0.1.0-test",
-    demarreLe: Date.now(),
-    production: false,
-    racinePublic: null,
-  });
+  return creerApp(dependancesTest({ depotAuth: depot }));
 }
 
 function corpsInscription(surcharge: Record<string, unknown> = {}) {
@@ -298,19 +279,26 @@ describe("POST /api/connexion", () => {
     expect(collegue.status).toBe(200);
   });
 
-  it("finit tout de même par bloquer un balayage massif depuis une IP", async () => {
-    // La limite par IP reste large, mais elle existe : 30 tentatives sur des
-    // e-mails tous différents doivent finir par être arrêtées.
-    let dernierStatut = 0;
-    for (let i = 0; i < 31; i += 1) {
-      const reponse = await request(app)
-        .post("/api/connexion")
-        .send({ email: `cible-${i}@exemple.fr`, mot_de_passe: "peu-importe-ici" });
-      dernierStatut = reponse.status;
-    }
+  it(
+    "finit tout de même par bloquer un balayage massif depuis une IP",
+    async () => {
+      // La limite par IP reste large, mais elle existe : 30 tentatives sur des
+      // e-mails tous différents doivent finir par être arrêtées.
+      let dernierStatut = 0;
+      for (let i = 0; i < 31; i += 1) {
+        const reponse = await request(app)
+          .post("/api/connexion")
+          .send({ email: `cible-${i}@exemple.fr`, mot_de_passe: "peu-importe-ici" });
+        dernierStatut = reponse.status;
+      }
 
-    expect(dernierStatut).toBe(429);
-  });
+      expect(dernierStatut).toBe(429);
+    },
+    // Chaque tentative sur un e-mail inconnu hache un mot de passe factice pour
+    // égaliser le temps de réponse (§2) : 31 scrypt à ~100 ms dépassent le
+    // délai par défaut de 5 s. C'est la défense qui coûte, pas le test.
+    30_000,
+  );
 });
 
 describe("GET /api/moi", () => {

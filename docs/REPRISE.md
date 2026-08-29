@@ -3,25 +3,36 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 28 août 2026 — vrais `CLAUDE.md` / `GEMINI.md` reçus,
-couche d'explication livrée sans IA.**
+**Dernière mise à jour : 29 août 2026 — Vague 5 livrée. Le périmètre du MVP
+(`CLAUDE.md` §3) est complet ; l'application est prête à être testée.**
 
-> ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont désormais les
-> **fichiers authentiques** transmis par le propriétaire, et non plus la
-> reconstruction faite en Vague 0. Les écarts entre eux et le code sont recensés
-> dans `docs/ECARTS-SPEC.md`, **partie II**. Deux points y demandent une action :
-> la base de test séparée de la production, et RLS Postgres.
+> ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont les **fichiers
+> authentiques** transmis par le propriétaire, et non plus la reconstruction
+> faite en Vague 0. Les écarts entre eux et le code sont recensés dans
+> `docs/ECARTS-SPEC.md`, **partie II**. Deux points y demandent encore une
+> action : la base de test séparée de la production, et RLS Postgres.
 
 ---
 
 ## État en une phrase
 
-Vagues 0 à 3 **terminées et vérifiées contre la vraie base Supabase**
-(PostgreSQL 17.6, `eu-central-1`, TLS authentifié). **216 tests automatisés** au
-vert, 48 vérifications de bout en bout sur l'instance réelle pour la seule
-Vague 3. Un client peut créer son compte, saisir ses ventes et ses dépenses, et
-lire son tableau de bord. Reste le cœur de valeur : les **questions
-intelligentes** (Vague 4), dont le contenu métier est encore à écrire.
+Les **sept modules du MVP** (`CLAUDE.md` §3) sont livrés et vérifiés contre la
+vraie base Supabase (PostgreSQL 17.6, `eu-central-1`, TLS authentifié) :
+entreprise, tableau de bord, ventes, dépenses, clients, produits, analyses —
+plus les Paramètres et une console d'administration. **372 tests automatisés**
+au vert. Un commerçant peut créer son compte **dans sa devise** (franc CFA, euro,
+dollar ou l'une des vingt autres), saisir son activité, lire ses indicateurs et
+obtenir des réponses en français à quatorze questions. Il reste à **le tester
+pour de vrai**, puis la Vague 5 du §10 : RLS Postgres et mise en ligne.
+
+### Pour démarrer un test complet
+
+```bash
+npm install && npm run build
+npm run migrate            # doit afficher 4 migrations appliquées
+npm run admin:creer        # crée l'accès à /admin/ — une seule fois
+npm start                  # http://localhost:3000  et  http://localhost:3000/admin/
+```
 
 ---
 
@@ -539,32 +550,166 @@ Et sur un compte neuf :
 
 ---
 
-## Prochaine vague
+---
 
-Deux chantiers ouverts par le vrai `CLAUDE.md`, détaillés dans
-`docs/ECARTS-SPEC.md` partie II :
+## Vague 5 — devise choisie, Paramètres, console d'administration *(livrée et vérifiée)*
 
-1. **Base de test séparée de la production** (`CLAUDE.md` §9) — toutes les
-   vérifications de fin de vague ont tourné contre la base réelle. Nettoyées à
-   chaque fois, mais la règle dit « base séparée ». À faire avant d'avoir de
-   vraies données.
-2. **RLS Postgres** (`CLAUDE.md` §9) — l'isolation repose aujourd'hui sur le
-   filtrage applicatif et des clés étrangères composites. RLS manque, et sa mise
-   en place avec le pooler en mode transaction est une vague à part entière :
-   elle relève de la **Vague 5 (Sécurité, mise en ligne)** du §10.
+Contrat : `docs/API-CONTRACT.md` §7 (référentiels), §8 (entreprise et compte),
+§9 (administration). Migration : `db/migrations/0004_pays_plan_devises.sql`,
+**appliquée sur Supabase**.
 
-Champs manquants, plus simples : `businesses.country` et `businesses.plan`.
+| Livrable | Où |
+|---|---|
+| `entreprises.pays` et `entreprises.plan` (`CLAUDE.md` §4) | `db/migrations/0004_pays_plan_devises.sql` |
+| Dix devises supplémentaires (CDF, GNF, NGN, GHS, KES, ZAR, RWF, BIF, DJF, KMF) | idem |
+| Liste des pays, devise et fuseau par défaut | `shared/src/referentiels.ts` |
+| `GET /api/referentiels` (publique) | `server/src/modules/referentiels/` |
+| `PATCH /api/entreprise`, `PATCH /api/moi`, `POST /api/mot-de-passe` | `server/src/modules/entreprise/` |
+| Console d'administration complète | `server/src/modules/admin/`, `admin/src/` |
+| Création du premier administrateur | `server/src/scripts/creerAdmin.ts` — `npm run admin:creer` |
+| Choix de la devise à l'inscription | `web/src/composants/ChoixDevise.tsx`, `web/src/pages/Inscription.tsx` |
+| Écran Paramètres (`CLAUDE.md` §8) | `web/src/pages/SectionParametres.tsx` |
+| Jeu de dépendances de test partagé | `server/src/test-utils/dependancesTest.ts` |
 
-La mécanique est spécifiée (`CLAUDE.md` §6) : une règle porte un identifiant, des
-secteurs concernés, un volume minimum, un seuil chiffré, une gravité, et un texte
-en français avec les vrais montants du client. **Le contenu métier reste à
-écrire** — c'est la décision n° 6 du §9, la seule encore ouverte.
+### Le choix de la devise
 
-Il manque toujours **les cas de référence issus du terrain** (formulaire en fin
-de `MOTEUR-ANALYTICS.md` §8). Les 8 cas synthétiques couvrent les arrondis, les
-fuseaux et les dénominateurs nuls ; ceux venant du métier prouveraient que le
-moteur calcule ce qu'un commerçant attend, et surtout ils orienteraient le
-contenu des règles.
+Franc CFA, euro et dollar sont trois boutons ; les vingt autres devises sont
+dans une liste. Le **pays** pré-remplit devise et fuseau — une question au lieu
+de trois — mais n'impose rien : une agence sénégalaise qui facture en euros
+choisit l'euro, et garde l'heure de Dakar.
+
+Le fuseau est le point qui se serait vu tard : sans lui, une vente saisie à
+22 h 30 à Dakar serait comptée le lendemain, parce que le serveur aurait
+supposé Paris.
+
+### La règle qui protège les données : le verrou de devise
+
+Un montant est stocké en **unité mineure**. Passer d'EUR à XOF ne convertit
+rien : `31500` cesse de valoir 315,00 € pour valoir 31 500 FCFA. Tout
+l'historique changerait de sens d'un coup.
+
+**La devise se change donc librement tant qu'aucun montant n'est enregistré, et
+plus après.** Le refus est un `409` qui dit exactement ce qui bloque :
+
+> *La devise ne peut plus changer : 12 ventes, 5 dépenses et 4 produits sont
+> enregistrés en EUR. Changer la devise réinterpréterait ces montants sans les
+> convertir.*
+
+Convertir automatiquement supposerait un taux de change. Aucun n'est
+disponible, et en inventer un ferait produire à l'application un chiffre
+financier faux — ce que `CLAUDE.md` §15 interdit.
+
+### La console d'administration
+
+Elle existe parce que trois choses n'avaient **aucune autre porte** : changer le
+plan à la main (`CLAUDE.md` §7.4), suspendre ou réactiver un compte, et
+réinitialiser un mot de passe — la « réinitialisation manuelle depuis /admin »
+promise en Vague 1, qui n'existait pas encore.
+
+Séparation stricte : table `admins`, table `admin_sessions`, cookie
+`bizly_admin`, session de **12 heures** contre 30 jours côté client. Un jeton
+client n'ouvre rien ici, un jeton admin n'ouvre rien côté client.
+
+**Aucune route d'inscription admin.** Le premier compte se crée en ligne de
+commande, sur la machine qui a déjà accès à la base :
+
+```bash
+npm run admin:creer     # nom, e-mail, mot de passe — saisi masqué, jamais en argument
+```
+
+La console **ne lit aucune donnée métier** : ni vente, ni dépense, ni client
+(§9.6). Un support qui peut tout lire est une fuite qui attend son incident.
+
+### Vérifié
+
+| Quoi | Résultat |
+|---|---|
+| `npm run typecheck` | 4 workspaces, 0 erreur |
+| `npm test` | **372 tests**, 0 échec (323 auparavant, 49 ajoutés) |
+| `npm run build` | shared + server + les 2 bundles |
+| Migration `0004` sur Supabase | appliquée |
+| **Parcours complet sur Supabase réel** (script jetable) | **104 vérifications, 0 échec** |
+
+Ce que le parcours réel a prouvé :
+
+- un compte sénégalais naît en **XOF à 0 décimale**, à l'heure de Dakar ;
+  **1500 FCFA vaut 1500 en base**, pas 150 000 ;
+- une devise explicite l'emporte sur celle du pays, **le fuseau reste celui du
+  pays** ;
+- un pays inconnu est **refusé en 400**, jamais ignoré — l'ignorer donnerait
+  silencieusement une devise que personne n'a choisie ;
+- le verrou de devise refuse en 409, **rien n'est écrit**, pas même le nom
+  envoyé dans la même requête, et la devise reste intacte ;
+- envoyer `plan` sur `PATCH /api/entreprise` est **refusé**, pas ignoré ;
+- un fuseau inconnu donne **400 avec le champ fautif**, pas un 500 remonté de
+  Postgres ;
+- changer son mot de passe **conserve la session courante et coupe les autres** ;
+- un cookie client sur `/api/admin/*` donne 401, et réciproquement ;
+- suspendre **révoque toutes les sessions du compte en base** — le cookie ne
+  vaut plus rien, et la reconnexion répond `403 COMPTE_SUSPENDU` ;
+- réactiver efface le motif et rouvre la connexion ;
+- un administrateur **ne peut pas poser un mot de passe faible**.
+
+Les quatre entreprises de test ont été supprimées, l'administrateur aussi, et
+les dix tables revérifiées à 0 ligne. Script supprimé après affichage.
+
+### Deux défauts trouvés pendant l'écriture
+
+**Un `count(*)` non casté rend un `BigInt`**, à cause du parseur de types posé
+en Vague 0. Le même piège qu'en Vague 4b, sous une autre forme. Tous les
+décomptes du nouveau code passent par `::text` ou `Number(...)` explicite.
+
+**Le test de balayage par IP dépassait son délai** : trente-et-une tentatives
+sur des e-mails inconnus hachent chacune un mot de passe factice pour égaliser
+le temps de réponse (§2). C'est la défense qui coûte, pas le test — son délai
+est désormais explicite plutôt que subi.
+
+### Ce qui reste hors périmètre
+
+| Exclu | Pourquoi |
+|---|---|
+| Changer son adresse e-mail | Demande de vérifier la nouvelle adresse, donc un service d'e-mail. Hors MVP, comme « mot de passe oublié ». |
+| Conversion automatique lors d'un changement de devise | Supposerait un taux de change qu'on n'a pas. |
+| Supprimer une entreprise depuis la console | Irréversible et sans filet. La suspension couvre le besoin. |
+| MRR, rétention, conversion Free → Pro | Demandent un historique d'événements que le MVP n'enregistre pas. Les afficher à zéro les ferait passer pour mesurés. |
+
+## Ce qui reste, dans l'ordre
+
+### 1. Le test réel — c'est l'étape en cours
+
+Le MVP est complet et vérifié techniquement. Ce qu'aucun test automatisé ne
+remplace : **un vrai entrepreneur qui saisit sa vraie activité** (`CLAUDE.md`
+§15). C'est de là que viendront les corrections d'ergonomie, et les **cas de
+référence issus du terrain** qui manquent toujours (formulaire en fin de
+`MOTEUR-ANALYTICS.md` §8).
+
+### 2. Base de test séparée de la production — `CLAUDE.md` §9
+
+Toutes les vérifications de fin de vague ont tourné contre la base réelle.
+Nettoyées et revérifiées à zéro ligne à chaque fois, mais la règle dit « base
+séparée ». **À faire avant d'avoir de vraies données** : un second projet
+Supabase, un `DATABASE_URL_TEST`, et des scripts qui refusent de démarrer si
+l'URL pointe ailleurs. Une vingtaine de lignes, une fois le projet créé.
+
+### 3. Vague 5 du §10 — sécurité et mise en ligne
+
+- **RLS Postgres** (`CLAUDE.md` §9). L'isolation repose aujourd'hui sur le
+  filtrage applicatif **et** des clés étrangères composites que la base fait
+  respecter — c'est solide et vérifié. Mais une requête qui oublierait son
+  `WHERE entreprise_id` lirait tout. RLS demande un `SET LOCAL` par transaction
+  à cause du pooler en mode transaction : c'est un chantier à part entière.
+- **Mot de passe oublié** : demande un service d'e-mail, aucun n'est choisi. En
+  attendant, la réinitialisation se fait depuis `/admin/`, et l'écran de
+  connexion le dit plutôt que d'afficher un lien mort.
+- Hébergement, variables d'environnement de production, `JWT_SECRET` généré par
+  l'hébergeur (`CLAUDE.md` §11).
+
+### 4. Décisions métier encore ouvertes
+
+Détaillées dans `docs/ECARTS-SPEC.md` : seuil d'inactivité client (60 jours, à
+confirmer), période par défaut des meilleurs clients, concept de « projet » pour
+le BTP (aucune table `projets`), panier moyen à `0` ou à `null` quand il n'y a
+aucune vente — le code applique `null`, `CLAUDE.md` §5 dit `0`.
 
 ---
 
@@ -573,8 +718,10 @@ contenu des règles.
 ```bash
 npm install
 cp .env.example .env          # puis remplir DATABASE_URL (pooler, port 6543)
-npm run migrate:statut        # doit afficher 2 migrations appliquees
+npm run migrate:statut        # doit afficher 4 migrations appliquees
+npm run migrate               # si l'une est en attente
 npm run build
+npm run admin:creer           # une seule fois : ouvre l'acces a /admin/
 npm start                     # http://localhost:3000
 ```
 

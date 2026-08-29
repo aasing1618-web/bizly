@@ -942,3 +942,202 @@ présent, pas sur la fenêtre consultée.
 | Reformulation par IA | Vague 4c — attend `GEMINI_API_KEY` et le contrat `GEMINI.md`. |
 | Question « quel projet rapporte le plus » (BTP) | Aucune table `projets` : §8 de la spécification, à trancher avant de coder. |
 | Questions en langage libre | Le moteur répond à un **catalogue fixe** de questions. Interpréter une question libre relèverait de l'IA, et sortirait du principe « l'IA ne calcule jamais ». |
+
+---
+
+## §7. Vague 5 — référentiels *(contrat arrêté)*
+
+### 7.1 `GET /api/referentiels`
+
+**Publique**, sans session : l'écran d'inscription en a besoin avant qu'aucun
+compte n'existe. Ne renvoie que des données de catalogue, aucune donnée client.
+
+```json
+{
+  "devises": [{ "code": "XOF", "libelle": "Franc CFA (BCEAO)", "symbole": "FCFA", "decimales": 0 }],
+  "secteurs": [{ "code": "commerce_detail", "libelle": "Commerce de détail" }],
+  "pays": [{ "code": "SN", "nom": "Sénégal", "devise": "XOF", "fuseau": "Africa/Dakar" }],
+  "devises_rapides": ["XOF", "EUR", "USD"]
+}
+```
+
+`Cache-Control: public, max-age=3600` : la liste change à peine plus souvent
+qu'une migration.
+
+**Origine des trois listes.** `devises` et `secteurs` sont **lues en base** —
+elles conditionnent des clés étrangères, la base en est donc la seule autorité.
+`pays` vient de `@bizly/shared` : ISO 3166-1 figé, aucune clé étrangère, et le
+serveur valide contre exactement la même constante que celle affichée au client.
+
+**`devises_rapides`** est un ordre d'affichage, pas une restriction : ce sont les
+trois devises mises en avant à l'inscription (franc CFA, euro, dollar). Les
+autres restent choisissables dans la liste complète.
+
+### 7.2 Pays, devise et fuseau — qui décide de quoi
+
+Le pays **pré-remplit** la devise et le fuseau, il ne les impose pas :
+
+| Champ envoyé | Comportement serveur |
+|---|---|
+| `pays` seul | `devise` et `fuseau` prennent la valeur usuelle du pays |
+| `pays` + `devise` | la devise envoyée gagne — une agence sénégalaise peut facturer en euros |
+| `pays` + `fuseau` | le fuseau envoyé gagne |
+| rien | `EUR` / `Europe/Paris`, comme avant la Vague 5 |
+
+Un `pays` inconnu de la liste est **refusé en 400**, jamais ignoré en silence :
+l'ignorer donnerait à l'utilisateur une devise qu'il n'a pas choisie.
+
+---
+
+## §8. Vague 5 — entreprise et compte *(contrat arrêté)*
+
+### 8.1 `PATCH /api/entreprise`
+
+Session requise, **rôle `PROPRIETAIRE`**. Corps partiel, au moins un champ :
+
+```json
+{ "nom": "Boutique Awa", "secteur": "commerce_detail", "pays": "SN",
+  "devise": "XOF", "fuseau": "Africa/Dakar" }
+```
+
+Renvoie l'`EntreprisePublique` à jour — la même forme que `GET /api/moi`, pour
+que le client remplace son état sans recomposer d'objet.
+
+`plan` et `statut` **n'y figurent pas** : ils relèvent de l'administration
+(`CLAUDE.md` §7.4). Les envoyer est une erreur de validation, pas un silence.
+
+### 8.2 Le changement de devise, et pourquoi il se ferme
+
+Un montant est stocké en **unité mineure** (`MOTEUR-ANALYTICS.md` §1). Passer
+d'EUR à XOF ne convertit rien : `31500` cesse de valoir 315,00 € pour valoir
+31 500 FCFA. Tout l'historique change de sens d'un coup.
+
+**Règle** : la devise se change librement **tant que l'entreprise n'a enregistré
+aucun montant**. Dès la première vente, dépense ou fiche produit, la demande est
+refusée en `409 CONFLIT` :
+
+```json
+{
+  "erreur": {
+    "code": "CONFLIT",
+    "message": "La devise ne peut plus changer : 12 ventes, 5 dépenses et 4 produits sont enregistrés en EUR.",
+    "details": { "volumes": { "ventes": 12, "depenses": 5, "produits": 4 } }
+  }
+}
+```
+
+Les volumes sont dans la réponse pour que le refus soit **vérifiable** par
+l'utilisateur, et non un mur sans explication.
+
+Convertir automatiquement supposerait un taux de change ; aucun n'est disponible,
+et en inventer un ferait produire à l'application un chiffre financier faux —
+exactement ce que `CLAUDE.md` §15 interdit.
+
+Deux devises à deux décimales ne font pas exception : 315,00 € ne vaut pas
+315,00 $.
+
+### 8.3 `PATCH /api/moi`
+
+Session requise. `{ "nom": "Awa Diop" }` renvoie l'`UtilisateurPublic` à jour.
+
+L'**e-mail ne se change pas** : il identifie le compte, et le modifier sans
+vérifier la nouvelle adresse permettrait de s'enfermer dehors, ou d'y envoyer un
+compte qui ne nous appartient pas. Cela demande un envoi d'e-mail — hors MVP,
+comme la réinitialisation de mot de passe (§2).
+
+### 8.4 `POST /api/mot-de-passe`
+
+Session requise. `{ "ancien": "...", "nouveau": "..." }` renvoie `204`.
+
+- `ancien` faux : `401 IDENTIFIANTS_INVALIDES` (même code qu'à la connexion,
+  rien à révéler de plus) ;
+- `nouveau` doit passer les mêmes règles qu'à l'inscription ;
+- `nouveau` identique à `ancien` : `400 VALIDATION` ;
+- **toutes les autres sessions sont révoquées**, celle en cours conservée.
+  Changer son mot de passe est le geste que l'on fait quand on se croit
+  compromis : laisser les autres sessions ouvertes le viderait de son sens.
+- Limite : 5 tentatives par heure et par utilisateur.
+
+---
+
+## §9. Vague 5 — console d'administration *(contrat arrêté)*
+
+Espace **strictement séparé** : table `admins`, table `admin_sessions`, cookie
+`bizly_admin`. Un jeton client n'ouvre rien ici, un jeton admin n'ouvre rien
+côté client — deux domaines d'authentification qui ne se croisent jamais.
+
+Aucune route d'inscription : le premier administrateur se crée en ligne de
+commande (`npm run admin:creer`), sur la machine qui détient déjà l'accès à la
+base. Une page d'inscription admin exposée sur Internet serait la porte d'entrée
+de tout le service.
+
+### 9.1 Authentification
+
+| Route | Corps | Réponse |
+|---|---|---|
+| `POST /api/admin/connexion` | `{ email, mot_de_passe }` | `200 { admin }` et cookie |
+| `POST /api/admin/deconnexion` | — | `204` |
+| `GET /api/admin/moi` | — | `200 { admin }` ou `401` |
+
+Mêmes défenses qu'au §2 : message unique pour « e-mail inconnu » et « mot de
+passe faux », temps de réponse égalisé, double limitation IP / e-mail. Les
+seuils sont **plus serrés** : 5 tentatives par quart d'heure et par e-mail,
+20 par IP. Les administrateurs sont peu nombreux et connaissent leur mot de
+passe.
+
+Session admin : **12 heures**, contre 30 jours côté client. Un accès qui voit
+tous les comptes ne reste pas ouvert un mois.
+
+### 9.2 `GET /api/admin/entreprises`
+
+| Paramètre | Défaut | Rôle |
+|---|---|---|
+| `recherche` | — | nom d'entreprise ou e-mail du propriétaire |
+| `statut` | tous | `ACTIF` ou `SUSPENDU` |
+| `plan` | tous | `free`, `pro` ou `business` |
+| `limite` / `decalage` | 50 / 0 | pagination `Page<T>` du §0 |
+
+Chaque élément est un `EntrepriseAdmin` : identité, plan, statut, propriétaire,
+volumes (utilisateurs, ventes, dépenses) et date de dernière activité.
+
+### 9.3 `PATCH /api/admin/entreprises/:id`
+
+```json
+{ "plan": "pro", "statut": "SUSPENDU", "motif_suspension": "Impayé" }
+```
+
+- `statut: "SUSPENDU"` **exige** `motif_suspension` — la base impose déjà le
+  couple `statut` / `suspendue_le`, l'API impose la raison, pour qu'aucune
+  suspension ne soit inexplicable six mois plus tard ;
+- repasser à `ACTIF` efface `motif_suspension` et `suspendue_le` ;
+- suspendre **révoque immédiatement toutes les sessions** de l'entreprise. Sans
+  cela, le compte suspendu resterait utilisable jusqu'à sa prochaine requête ;
+- `plan` est le champ manuel du `CLAUDE.md` §7.4 : c'est ici, et nulle part
+  ailleurs, qu'il change.
+
+### 9.4 `POST /api/admin/utilisateurs/:id/mot-de-passe`
+
+`{ "mot_de_passe": "..." }` renvoie `204`. C'est la réinitialisation manuelle
+promise en Vague 1, en attendant un service d'e-mail. Révoque **toutes** les
+sessions de l'utilisateur. Le mot de passe est soumis aux mêmes règles qu'à
+l'inscription : un administrateur pressé ne doit pas pouvoir poser
+« motdepasse ».
+
+### 9.5 `GET /api/admin/statistiques`
+
+Les indicateurs de succès du `CLAUDE.md` §14 qui sont calculables aujourd'hui :
+entreprises (total, actives, suspendues), utilisateurs, entreprises ayant
+enregistré **au moins une vente**, répartition par plan, inscriptions des
+30 derniers jours.
+
+Rétention, MRR et conversion Free vers Pro n'y sont pas : ils demandent un
+historique d'événements que le MVP n'enregistre pas. Les afficher à zéro les
+ferait passer pour mesurés.
+
+### 9.6 Ce que la console ne fait pas
+
+| Exclu | Pourquoi |
+|---|---|
+| Lire les ventes, dépenses ou clients d'une entreprise | Aucune raison d'exploitation ne l'exige. Un support qui peut tout lire est une fuite qui attend son incident. |
+| Supprimer une entreprise | Irréversible et sans filet. La suspension couvre le besoin réel. |
+| Créer un administrateur depuis l'interface | Ligne de commande uniquement (§9). |

@@ -318,8 +318,8 @@ pas oubliée.
 
 | Ce que dit `CLAUDE.md` | État | Impact |
 |---|---|---|
-| `businesses.country` (§3, §4) | **absent** | Le pays n'est jamais demandé à l'inscription. Ajout simple : une migration et un champ. |
-| `businesses.plan (free\|pro\|business)` (§4, §12) | **absent** | Le modèle économique n'a aucun support. Champ manuel, changé par l'admin — pas de paiement (§7.4). |
+| `businesses.country` (§3, §4) | **ajouté** le 29 août 2026 (migration `0004`) | Demandé à l'inscription, il pré-remplit la devise et le fuseau. |
+| `businesses.plan (free\|pro\|business)` (§4, §12) | **ajouté** le 29 août 2026 (migration `0004`) | Champ manuel, changé depuis `/admin/` uniquement — pas de paiement (§7.4). |
 | `products.active (bool)` (§4) | remplacé par une suppression douce (`supprime_le`) | Équivalent fonctionnel, et l'historique reste daté. À confirmer. |
 | `expenses.description` (§4) | présent sous le nom `note` | Simple différence de nom. |
 | `analysis_questions` (table) (§4) | **le catalogue est dans le code**, pas en base | Voir §B.1 ci-dessous. |
@@ -453,3 +453,85 @@ le jour où une reformulation par IA viendra s'ajouter.
 Car elle peut s'ajouter : ton §13 place « explications Gemini » dans la feuille
 de route **après** le MVP. Le jour venu, ces phrases resteront le **repli** quand
 l'API est indisponible — ce qui est de toute façon nécessaire.
+
+---
+
+# Partie IV — décisions prises en Vague 5
+
+## IV.1 La devise se choisit, et se verrouille
+
+`CLAUDE.md` §2 veut un produit « horizontal et international », et §4 met
+`currency` sur `businesses`. Le champ existait depuis la Vague 0, mais **rien ne
+permettait de le choisir** : tout compte naissait en euro, à l'heure de Paris.
+
+C'est désormais un choix explicite à l'inscription — franc CFA, euro et dollar
+en tête, vingt autres devises derrière — et modifiable dans Paramètres, **tant
+qu'aucun montant n'est enregistré**.
+
+**Le verrou est la partie qui compte.** Un montant est stocké en unité mineure
+(`MOTEUR-ANALYTICS.md` §1) : passer d'EUR à XOF ferait cesser à `31500` de valoir
+315,00 € pour valoir 31 500 FCFA. Aucune conversion, tout l'historique change de
+sens.
+
+Trois options ont été pesées :
+
+| Option | Verdict |
+|---|---|
+| Convertir au taux du jour | **Refusée.** Aucune source de taux n'est disponible, et en inventer une ferait produire à l'application un chiffre financier faux — ce que ton §15 interdit explicitement. |
+| Laisser passer entre devises de même exposant (EUR → USD) | **Refusée.** 315,00 € ne vaut pas 315,00 $. La ressemblance des formats rend l'erreur plus dangereuse, pas moins. |
+| Refuser dès la première écriture, en expliquant | **Retenue.** |
+
+Le refus est un `409` qui nomme les volumes bloquants, pour qu'il soit
+**vérifiable** par l'utilisateur au lieu d'être un mur.
+
+## IV.2 Le fuseau suit le pays
+
+Le point qui ne se serait vu que tard : sans lui, une vente saisie à 22 h 30 à
+Dakar serait comptée le lendemain, le serveur ayant supposé Paris. Le pays est
+donc demandé à l'inscription — **une question**, pas trois — et remplit devise
+et fuseau, tous deux modifiables ensuite.
+
+Un pays inconnu est refusé en `400`, jamais ignoré : l'ignorer donnerait
+silencieusement une devise que personne n'a choisie.
+
+## IV.3 La liste des pays vit dans le code, pas en base
+
+Contrairement aux devises et aux secteurs, qui restent en base parce que des
+clés étrangères les contraignent. Les pays ne contraignent rien : ISO 3166-1
+figé, aucune jointure. Une table imposerait une migration par pays ajouté sans
+rien apporter — et le serveur valide contre **exactement la même constante** que
+celle affichée au client, ce qu'une table ne garantirait pas mieux.
+
+Un test vérifie l'invariant qui compte : la devise de chaque pays proposé existe
+bien dans les migrations. Sans lui, choisir un pays pourrait produire une
+inscription refusée pour « devise inconnue » — sur un choix que l'écran a
+lui-même proposé.
+
+## IV.4 La console d'administration existe parce que trois choses n'avaient pas d'autre porte
+
+1. **Changer le plan** — ton §7.4 dit « changé à la main par l'admin ». Il
+   n'existait aucun admin.
+2. **Suspendre et réactiver** — le livrable vérifiable de la Vague 1 (§10) était
+   « un compte suspendu est bloqué ». C'était vrai en base, mais rien ne
+   permettait de suspendre.
+3. **Réinitialiser un mot de passe** — la Vague 1 promettait « la
+   réinitialisation est manuelle depuis `/admin` ». `/admin` affichait une sonde
+   de santé.
+
+Ce qu'elle **ne fait pas**, volontairement : lire une vente, une dépense ou un
+client. Aucune raison d'exploitation ne l'exige, et un support qui peut tout
+lire est une fuite qui attend son incident.
+
+Aucune route d'inscription admin n'est exposée : le premier compte se crée en
+ligne de commande, sur la machine qui détient déjà l'accès à la base.
+
+## IV.5 Ce qui reste à trancher, et qui t'appartient
+
+| Question | État du code | Ce que je recommande |
+|---|---|---|
+| Panier moyen sans aucune vente : `0` (§5) ou `null` (`MOTEUR-ANALYTICS` §3.4) ? | `null`, affiché `—` | **`null`.** « 0 € » est une information fausse ; un tiret est une information juste. |
+| Cookie `SameSite` : `Lax` (code) ou `Strict` (§7.1) ? | `Lax` | Voir partie C.1 — inchangé. |
+| Catalogue de questions en table (§4) ou en code ? | en code | Voir partie B.1 — inchangé. |
+| Seuil d'inactivité client | 60 jours | À confirmer avec de vrais utilisateurs, puis à rendre paramétrable par secteur. |
+
+Aucune de ces questions ne bloque le test du produit.

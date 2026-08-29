@@ -1,4 +1,9 @@
-import type { EntreprisePublique, ReponseSession, UtilisateurPublic } from "@bizly/shared";
+import {
+  paysParCode,
+  type EntreprisePublique,
+  type ReponseSession,
+  type UtilisateurPublic,
+} from "@bizly/shared";
 import { ErreurApi, erreurs } from "../../http/erreurs.js";
 import { DUREE_SESSION_S } from "../../http/cookies.js";
 import { EmailDejaPris, type DepotAuth } from "./depot.js";
@@ -93,7 +98,21 @@ export function creerServiceAuth(deps: DependancesServiceAuth): ServiceAuth {
         });
       }
 
-      const devise = entree.entreprise.devise ?? DEVISE_PAR_DEFAUT;
+      // Le pays ne contraint rien : il **remplit** la devise et le fuseau quand
+      // l'utilisateur ne les précise pas. Un code inconnu est refusé plutôt
+      // qu'ignoré — l'ignorer donnerait silencieusement une devise que
+      // l'utilisateur n'a pas choisie (docs/API-CONTRACT.md §7.2).
+      let pays = null;
+      if (entree.entreprise.pays !== undefined) {
+        pays = paysParCode(entree.entreprise.pays);
+        if (pays === null) {
+          throw erreurs.validation("Ce pays n'est pas pris en charge.", {
+            champs: [{ champ: "entreprise.pays", message: "Pays inconnu." }],
+          });
+        }
+      }
+
+      const devise = entree.entreprise.devise ?? pays?.devise ?? DEVISE_PAR_DEFAUT;
       if (!(await depot.deviseExiste(devise))) {
         throw erreurs.validation("Cette devise n'est pas prise en charge.", {
           champs: [{ champ: "entreprise.devise", message: "Devise inconnue." }],
@@ -108,8 +127,9 @@ export function creerServiceAuth(deps: DependancesServiceAuth): ServiceAuth {
           entreprise: {
             nom: entree.entreprise.nom,
             secteur,
+            pays: pays?.code ?? null,
             devise,
-            fuseau: entree.entreprise.fuseau ?? FUSEAU_PAR_DEFAUT,
+            fuseau: entree.entreprise.fuseau ?? pays?.fuseau ?? FUSEAU_PAR_DEFAUT,
           },
           utilisateur: {
             nom: entree.utilisateur.nom,

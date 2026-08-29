@@ -6,10 +6,18 @@ import {
   identifiantRequete,
   journaliserRequetes,
 } from "./http/middlewares.js";
+import { creerRouteurAdmin } from "./modules/admin/routes.js";
+import type { DepotAdmin } from "./modules/admin/depot.js";
+import type { ServiceAdmin } from "./modules/admin/service.js";
 import { creerRouteurAuth } from "./modules/auth/routes.js";
+import type { DepotAuth } from "./modules/auth/depot.js";
 import type { ServiceAuth } from "./modules/auth/service.js";
 import { creerRouteurCatalogue } from "./modules/catalogue/routes.js";
 import type { DepotCatalogue } from "./modules/catalogue/depot.js";
+import { creerRouteurEntreprise } from "./modules/entreprise/routes.js";
+import type { DepotEntreprise } from "./modules/entreprise/depot.js";
+import { creerRouteurReferentiels } from "./modules/referentiels/routes.js";
+import type { DepotReferentiels } from "./modules/referentiels/depot.js";
 import { creerRouteurKpi } from "./modules/kpi/routes.js";
 import type { DepotKpi } from "./modules/kpi/depot.js";
 import { creerRouteurOperations } from "./modules/operations/routes.js";
@@ -23,9 +31,14 @@ export type DependancesApp = {
   sonderBase: SondeBase;
   serviceAuth: ServiceAuth;
   serviceOperations: ServiceOperations;
+  serviceAdmin: ServiceAdmin;
+  depotAuth: DepotAuth;
   depotKpi: DepotKpi;
   depotCatalogue: DepotCatalogue;
   depotQuestions: DepotQuestions;
+  depotEntreprise: DepotEntreprise;
+  depotReferentiels: DepotReferentiels;
+  depotAdmin: DepotAdmin;
   version: string;
   demarreLe: number;
   production: boolean;
@@ -75,7 +88,22 @@ export function creerApp(deps: DependancesApp): Express {
       demarreLe: deps.demarreLe,
     }),
   );
+  api.use(creerRouteurReferentiels({ depot: deps.depotReferentiels }));
   api.use(creerRouteurAuth({ service: deps.serviceAuth, production: deps.production }));
+  api.use(
+    creerRouteurEntreprise({
+      serviceAuth: deps.serviceAuth,
+      depot: deps.depotEntreprise,
+      depotAuth: deps.depotAuth,
+    }),
+  );
+  api.use(
+    creerRouteurAdmin({
+      service: deps.serviceAdmin,
+      depot: deps.depotAdmin,
+      production: deps.production,
+    }),
+  );
   api.use(
     creerRouteurOperations({
       serviceAuth: deps.serviceAuth,

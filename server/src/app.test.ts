@@ -1,15 +1,9 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { creerApp } from "./app.js";
-import { creerServiceAuth } from "./modules/auth/service.js";
-import { creerDepotMemoire } from "./test-utils/depotMemoire.js";
-import { creerDepotOperationsMemoire } from "./test-utils/depotOperationsMemoire.js";
-import { creerServiceOperations } from "./modules/operations/service.js";
 import type { EtatBase } from "./db/sonde.js";
 import { definirNiveauJournal } from "./http/journal.js";
-import { creerDepotKpiMemoire } from "./test-utils/depotKpiMemoire.js";
-import { creerDepotCatalogueMemoire } from "./test-utils/depotCatalogueMemoire.js";
-import { creerDepotQuestionsMemoire } from "./test-utils/depotQuestionsMemoire.js";
+import { dependancesTest } from "./test-utils/dependancesTest.js";
 
 /**
  * Tests du socle HTTP.
@@ -21,20 +15,7 @@ import { creerDepotQuestionsMemoire } from "./test-utils/depotQuestionsMemoire.j
  */
 
 function app(sonderBase: () => Promise<EtatBase>) {
-  const depotCatalogue = creerDepotCatalogueMemoire();
-
-  return creerApp({
-    sonderBase,
-    serviceAuth: creerServiceAuth({ depot: creerDepotMemoire() }),
-    serviceOperations: creerServiceOperations(creerDepotOperationsMemoire(), depotCatalogue),
-    depotKpi: creerDepotKpiMemoire(),
-    depotCatalogue,
-    depotQuestions: creerDepotQuestionsMemoire(),
-    version: "0.1.0-test",
-    demarreLe: Date.now() - 5_000,
-    production: false,
-    racinePublic: null,
-  });
+  return creerApp(dependancesTest({ sonderBase, demarreLe: Date.now() - 5_000 }));
 }
 
 const baseEnForme = async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 12 });
