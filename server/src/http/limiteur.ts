@@ -1,22 +1,24 @@
 /**
- * Limitation de débit, en mémoire du processus.
+ * Limitation de débit.
  *
- * Fenêtre glissante par horodatages : plus juste qu'un compteur remis à zéro à
- * heure fixe, qui laisse passer deux fois le quota à cheval sur la bascule.
+ * Deux implémentations derrière une seule interface : en mémoire du processus
+ * (`creerLimiteur`, ci-dessous) et partagée en base (`limiteurBase.ts`).
+ * Laquelle est utilisée se décide au câblage, pas dans les routes.
  *
- * **Limite assumée** : l'état vit dans le processus. Avec deux instances, chacune
- * accorde le quota complet. Acceptable pour le MVP mono-instance ; le jour où
- * l'on passe à deux, il faudra un magasin partagé. C'est écrit ici pour que la
- * découverte ne se fasse pas en production (docs/API-CONTRACT.md §2).
+ * L'interface est **asynchrone** parce que la version partagée fait un
+ * aller-retour Postgres. Le coût est d'une requête par tentative de connexion,
+ * ce qui est le prix d'une défense qui survit à plusieurs instances.
+ *
+ * Fenêtre **glissante** par horodatages dans les deux cas : plus juste qu'un
+ * compteur remis à zéro à heure fixe, qui laisse passer deux fois le quota à
+ * cheval sur la bascule.
  */
 
 export type Limiteur = {
   /** `true` si la tentative est acceptée. L'enregistre au passage. */
-  autoriser(cle: string): boolean;
+  autoriser(cle: string): Promise<boolean>;
   /** Efface l'historique d'une clé — après une connexion réussie, par exemple. */
-  reinitialiser(cle: string): void;
-  /** Purge les entrées périmées. Appelée automatiquement, exposée pour les tests. */
-  nettoyer(maintenant?: number): void;
+  reinitialiser(cle: string): Promise<void>;
 };
 
 export type OptionsLimiteur = {
@@ -28,7 +30,20 @@ export type OptionsLimiteur = {
   horloge?: () => number;
 };
 
-export function creerLimiteur(options: OptionsLimiteur): Limiteur {
+/**
+ * Fabrique un limiteur pour un usage donné.
+ *
+ * Le `nom` est un espace de noms : « connexion », « inscription »… Sans lui,
+ * une même IP partagerait un compteur entre l'inscription et la connexion, et
+ * bloquer l'une bloquerait l'autre.
+ */
+export type FabriqueLimiteur = (nom: string, options: OptionsLimiteur) => Limiteur;
+
+/** Limiteur en mémoire du processus. Convient au développement et aux tests. */
+export function creerLimiteur(options: OptionsLimiteur): Limiteur & {
+  /** Purge les entrées périmées. Appelée automatiquement, exposée pour les tests. */
+  nettoyer(maintenant?: number): void;
+} {
   const { maximum, fenetreMs, horloge = Date.now } = options;
   const historique = new Map<string, number[]>();
 
@@ -46,7 +61,7 @@ export function creerLimiteur(options: OptionsLimiteur): Limiteur {
   }
 
   return {
-    autoriser(cle: string): boolean {
+    async autoriser(cle: string): Promise<boolean> {
       const maintenant = horloge();
       if (maintenant >= prochainNettoyage) nettoyer(maintenant);
 
@@ -64,13 +79,17 @@ export function creerLimiteur(options: OptionsLimiteur): Limiteur {
       return true;
     },
 
-    reinitialiser(cle: string): void {
+    async reinitialiser(cle: string): Promise<void> {
       historique.delete(cle);
     },
 
     nettoyer,
   };
 }
+
+/** Fabrique en mémoire — celle des tests et du développement hors base. */
+export const fabriqueLimiteurMemoire: FabriqueLimiteur = (_nom, options) =>
+  creerLimiteur(options);
 
 /**
  * Identifie l'appelant pour la limitation.

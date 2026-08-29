@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { effacerCookieSession, lireCookieSession, poserCookieSession } from "../../http/cookies.js";
 import { erreurs } from "../../http/erreurs.js";
-import { cleEmail, cleIp, creerLimiteur } from "../../http/limiteur.js";
+import { cleEmail, cleIp, type FabriqueLimiteur } from "../../http/limiteur.js";
 import { contexteDe, exigerSession } from "../../http/session.js";
 import { detailsValidation, premierMessage } from "../../http/validation.js";
 import type { MetaRequete, ServiceAuth } from "./service.js";
@@ -18,6 +18,14 @@ import { schemaConnexion, schemaInscription } from "./validation.js";
 export type OptionsRouteurAuth = {
   service: ServiceAuth;
   production: boolean;
+  /**
+   * Fabrique de limiteurs, injectée.
+   *
+   * En production elle est adossée à Postgres, pour que la limite tienne quand
+   * l'application tourne en plusieurs exemplaires. Les tests en injectent une
+   * version en mémoire, qui n'a besoin d'aucune base.
+   */
+  creerLimiteur: FabriqueLimiteur;
 };
 
 /**
@@ -50,15 +58,15 @@ function meta(requete: Request): MetaRequete {
 }
 
 export function creerRouteurAuth(options: OptionsRouteurAuth): Router {
-  const { service, production } = options;
+  const { service, production, creerLimiteur } = options;
   const routeur = Router();
 
-  const limiteInscription = creerLimiteur(LIMITE_INSCRIPTION);
-  const limiteConnexionEmail = creerLimiteur(LIMITE_CONNEXION_EMAIL);
-  const limiteConnexionIp = creerLimiteur(LIMITE_CONNEXION_IP);
+  const limiteInscription = creerLimiteur("inscription", LIMITE_INSCRIPTION);
+  const limiteConnexionEmail = creerLimiteur("connexion-email", LIMITE_CONNEXION_EMAIL);
+  const limiteConnexionIp = creerLimiteur("connexion-ip", LIMITE_CONNEXION_IP);
 
   routeur.post("/inscription", async (requete, reponse) => {
-    if (!limiteInscription.autoriser(cleIp(requete.ip))) throw erreurs.tropDeRequetes();
+    if (!(await limiteInscription.autoriser(cleIp(requete.ip)))) throw erreurs.tropDeRequetes();
 
     const analyse = schemaInscription.safeParse(requete.body);
     if (!analyse.success) {
@@ -80,8 +88,8 @@ export function creerRouteurAuth(options: OptionsRouteurAuth): Router {
     // Les deux compteurs sont consultés avant de conclure, pour qu'une
     // tentative compte dans chacun — sinon l'évaluation court-circuitée
     // laisserait l'un des deux à la traîne.
-    const passeIp = limiteConnexionIp.autoriser(cleIp(requete.ip));
-    const passeEmail = limiteConnexionEmail.autoriser(cleEmail(analyse.data.email));
+    const passeIp = await limiteConnexionIp.autoriser(cleIp(requete.ip));
+    const passeEmail = await limiteConnexionEmail.autoriser(cleEmail(analyse.data.email));
     if (!passeIp || !passeEmail) throw erreurs.tropDeRequetes();
 
     const { session, jeton } = await service.connecter(analyse.data, meta(requete));
@@ -92,7 +100,7 @@ export function creerRouteurAuth(options: OptionsRouteurAuth): Router {
     //
     // Le compteur d'IP n'est PAS remis à zéro : sinon un attaquant balayant des
     // comptes lui appartenant se donnerait un quota infini.
-    limiteConnexionEmail.reinitialiser(cleEmail(analyse.data.email));
+    await limiteConnexionEmail.reinitialiser(cleEmail(analyse.data.email));
 
     poserCookieSession(reponse, jeton, { production });
     reponse.status(200).json(session);

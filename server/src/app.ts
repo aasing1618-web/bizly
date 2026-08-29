@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import type { SondeBase } from "./db/sonde.js";
 import { gestionnaireErreurs, routeApiIntrouvable } from "./http/erreurs.js";
+import type { FabriqueLimiteur } from "./http/limiteur.js";
 import {
   entetesSecurite,
   identifiantRequete,
@@ -39,6 +40,15 @@ export type DependancesApp = {
   depotEntreprise: DepotEntreprise;
   depotReferentiels: DepotReferentiels;
   depotAdmin: DepotAdmin;
+  /**
+   * Fabrique de limiteurs de débit.
+   *
+   * Injectée parce qu'elle dépend du déploiement, pas du métier : adossée à
+   * Postgres dès qu'il peut y avoir plusieurs instances, en mémoire pour les
+   * tests. Une limite qui vit dans le processus n'existe plus dès la deuxième
+   * instance (`db/migrations/0005_limites_debit.sql`).
+   */
+  creerLimiteur: FabriqueLimiteur;
   version: string;
   demarreLe: number;
   production: boolean;
@@ -89,12 +99,19 @@ export function creerApp(deps: DependancesApp): Express {
     }),
   );
   api.use(creerRouteurReferentiels({ depot: deps.depotReferentiels }));
-  api.use(creerRouteurAuth({ service: deps.serviceAuth, production: deps.production }));
+  api.use(
+    creerRouteurAuth({
+      service: deps.serviceAuth,
+      production: deps.production,
+      creerLimiteur: deps.creerLimiteur,
+    }),
+  );
   api.use(
     creerRouteurEntreprise({
       serviceAuth: deps.serviceAuth,
       depot: deps.depotEntreprise,
       depotAuth: deps.depotAuth,
+      creerLimiteur: deps.creerLimiteur,
     }),
   );
   api.use(
@@ -102,6 +119,7 @@ export function creerApp(deps: DependancesApp): Express {
       service: deps.serviceAdmin,
       depot: deps.depotAdmin,
       production: deps.production,
+      creerLimiteur: deps.creerLimiteur,
     }),
   );
   api.use(

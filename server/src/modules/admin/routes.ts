@@ -8,7 +8,7 @@ import {
 } from "@bizly/shared";
 import { effacerCookieAdmin, lireCookieAdmin, poserCookieAdmin } from "../../http/cookies.js";
 import { erreurs } from "../../http/erreurs.js";
-import { cleEmail, cleIp, creerLimiteur } from "../../http/limiteur.js";
+import { cleEmail, cleIp, type FabriqueLimiteur } from "../../http/limiteur.js";
 import { analyser, detailsValidation, premierMessage } from "../../http/validation.js";
 import { schemaMotDePasse } from "../auth/validation.js";
 import { hacherMotDePasse } from "../auth/motDePasse.js";
@@ -37,6 +37,7 @@ export type OptionsRouteurAdmin = {
   service: ServiceAdmin;
   depot: DepotAdmin;
   production: boolean;
+  creerLimiteur: FabriqueLimiteur;
 };
 
 /**
@@ -120,12 +121,12 @@ function identifiant(requete: Request, quoi: string): string {
 }
 
 export function creerRouteurAdmin(options: OptionsRouteurAdmin): Router {
-  const { service, depot, production } = options;
+  const { service, depot, production, creerLimiteur } = options;
   const routeur = Router();
   const protege = exigerAdmin(service);
 
-  const limiteEmail = creerLimiteur(LIMITE_ADMIN_EMAIL);
-  const limiteIp = creerLimiteur(LIMITE_ADMIN_IP);
+  const limiteEmail = creerLimiteur("admin-email", LIMITE_ADMIN_EMAIL);
+  const limiteIp = creerLimiteur("admin-ip", LIMITE_ADMIN_IP);
 
   // ------------------------------------------------------- authentification --
 
@@ -137,12 +138,12 @@ export function creerRouteurAdmin(options: OptionsRouteurAdmin): Router {
 
     // Les deux compteurs sont consultés avant de conclure, pour qu'une
     // tentative compte dans chacun.
-    const passeIp = limiteIp.autoriser(cleIp(requete.ip));
-    const passeEmail = limiteEmail.autoriser(cleEmail(analyse.data.email));
+    const passeIp = await limiteIp.autoriser(cleIp(requete.ip));
+    const passeEmail = await limiteEmail.autoriser(cleEmail(analyse.data.email));
     if (!passeIp || !passeEmail) throw erreurs.tropDeRequetes();
 
     const { admin, jeton } = await service.connecter(analyse.data, meta(requete));
-    limiteEmail.reinitialiser(cleEmail(analyse.data.email));
+    await limiteEmail.reinitialiser(cleEmail(analyse.data.email));
 
     poserCookieAdmin(reponse, jeton, { production });
     reponse.status(200).json({ admin });

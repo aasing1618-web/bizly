@@ -1,5 +1,6 @@
 import type { DependancesApp } from "../app.js";
 import type { EtatBase } from "../db/sonde.js";
+import { fabriqueLimiteurMemoire } from "../http/limiteur.js";
 import { creerServiceAdmin } from "../modules/admin/service.js";
 import { creerServiceAuth } from "../modules/auth/service.js";
 import { creerServiceOperations } from "../modules/operations/service.js";
@@ -64,6 +65,9 @@ export function assemblerTest(surcharges: SurchargesTest = {}): {
     depotEntreprise,
     depotReferentiels: creerDepotReferentielsMemoire(),
     depotAdmin,
+    // En mémoire : les tests n'ont pas de base, et la limitation partagée est
+    // couverte par la vérification de fin de vague contre Postgres.
+    creerLimiteur: fabriqueLimiteurMemoire,
     version: "0.1.0-test",
     demarreLe: Date.now(),
     production: false,

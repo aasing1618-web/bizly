@@ -11,15 +11,29 @@ import path from "node:path";
  * Le télécharger : Dashboard Supabase → Project Settings → Database →
  * SSL Configuration → « Download certificate ».
  *
- * @param chemin  valeur de DATABASE_CA_CERT, absolue ou relative à la racine
- * @param racine  racine du dépôt
+ * La valeur accepte **deux formes** :
+ *
+ * - un **chemin** de fichier (local : `db/supabase-root-2021-ca.crt`) ;
+ * - le **contenu PEM** lui-même, collé dans la variable d'environnement.
+ *
+ * La seconde existe pour les hébergeurs sans système de fichiers stable — une
+ * fonction sans état n'embarque pas forcément les fichiers non tracés par le
+ * compilateur, et une connexion TLS qui échoue au démarrage est difficile à
+ * diagnostiquer à distance.
+ *
+ * @param valeur  valeur de DATABASE_CA_CERT : chemin, ou PEM complet
+ * @param racine  racine du dépôt, pour résoudre un chemin relatif
  */
 export function chargerCertificatCa(
-  chemin: string | undefined,
+  valeur: string | undefined,
   racine: string,
 ): string | undefined {
-  if (chemin === undefined || chemin.trim() === "") return undefined;
+  if (valeur === undefined || valeur.trim() === "") return undefined;
 
+  // PEM collé directement : on le prend tel quel, sans toucher au disque.
+  if (valeur.includes("BEGIN CERTIFICATE")) return valeur.replace(/\\n/g, "\n");
+
+  const chemin = valeur;
   const cheminComplet = path.isAbsolute(chemin) ? chemin : path.join(racine, chemin);
 
   if (!existsSync(cheminComplet)) {

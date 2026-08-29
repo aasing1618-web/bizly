@@ -65,3 +65,4 @@ constante `LIMITES_POOLER_TRANSACTION`.
 | `0002_referentiels.sql` | données de référence : 10 devises, 9 secteurs, 20 modèles de catégorie de dépense |
 | `0003_catalogue.sql` | table `produits` (prix, coût nullable, catégorie), `lignes_vente.produit_id` et sa clé étrangère composite |
 | `0004_pays_plan_devises.sql` | `entreprises.pays` et `entreprises.plan` (`CLAUDE.md` §4), index de la console d'administration, 10 devises supplémentaires |
+| `0005_limites_debit.sql` | limitation de débit partagée entre instances, nécessaire dès que l'application tourne en plusieurs exemplaires |

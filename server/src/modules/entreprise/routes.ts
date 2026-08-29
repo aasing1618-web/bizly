@@ -4,7 +4,7 @@ import { paysParCode, type VolumesEnregistres } from "@bizly/shared";
 import { fuseauValide } from "../../domaine/temps.js";
 import { lireCookieSession } from "../../http/cookies.js";
 import { ErreurApi, erreurs } from "../../http/erreurs.js";
-import { cleUtilisateur, creerLimiteur } from "../../http/limiteur.js";
+import { cleUtilisateur, type FabriqueLimiteur } from "../../http/limiteur.js";
 import { contexteDe, exigerRole, exigerSession } from "../../http/session.js";
 import { analyser } from "../../http/validation.js";
 import type { DepotAuth } from "../auth/depot.js";
@@ -23,6 +23,7 @@ export type OptionsRouteurEntreprise = {
   depot: DepotEntreprise;
   /** Pour valider secteur et devise contre les référentiels de la base. */
   depotAuth: DepotAuth;
+  creerLimiteur: FabriqueLimiteur;
 };
 
 /** Changer son mot de passe est un geste rare : cinq essais par heure suffisent. */
@@ -74,10 +75,10 @@ export function decrireVolumes(volumes: VolumesEnregistres): string {
 }
 
 export function creerRouteurEntreprise(options: OptionsRouteurEntreprise): Router {
-  const { serviceAuth, depot, depotAuth } = options;
+  const { serviceAuth, depot, depotAuth, creerLimiteur } = options;
   const routeur = Router();
   const protege = exigerSession(serviceAuth);
-  const limiteMotDePasse = creerLimiteur(LIMITE_MOT_DE_PASSE);
+  const limiteMotDePasse = creerLimiteur("mot-de-passe", LIMITE_MOT_DE_PASSE);
 
   routeur.patch("/entreprise", protege, exigerRole("PROPRIETAIRE"), async (requete, reponse) => {
     const corps = analyser(schemaModificationEntreprise, requete.body);
@@ -152,7 +153,7 @@ export function creerRouteurEntreprise(options: OptionsRouteurEntreprise): Route
 
   routeur.post("/mot-de-passe", protege, async (requete, reponse) => {
     const { utilisateur } = contexteDe(requete);
-    if (!limiteMotDePasse.autoriser(cleUtilisateur(utilisateur.id))) {
+    if (!(await limiteMotDePasse.autoriser(cleUtilisateur(utilisateur.id)))) {
       throw erreurs.tropDeRequetes();
     }
 
@@ -181,7 +182,7 @@ export function creerRouteurEntreprise(options: OptionsRouteurEntreprise): Route
       empreinteJeton(jetonCourant),
     );
 
-    limiteMotDePasse.reinitialiser(cleUtilisateur(utilisateur.id));
+    await limiteMotDePasse.reinitialiser(cleUtilisateur(utilisateur.id));
     reponse.status(204).end();
   });
 

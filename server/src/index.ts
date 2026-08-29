@@ -12,6 +12,7 @@ import { creerServiceAuth } from "./modules/auth/service.js";
 import { creerDepotCatalogue } from "./modules/catalogue/depot.js";
 import { creerDepotEntreprise } from "./modules/entreprise/depot.js";
 import { creerDepotReferentiels } from "./modules/referentiels/depot.js";
+import { creerFabriqueLimiteurBase } from "./http/limiteurBase.js";
 import { creerDepotKpi } from "./modules/kpi/depot.js";
 import { creerDepotOperations } from "./modules/operations/depot.js";
 import { creerDepotQuestions } from "./modules/questions/depot.js";
@@ -46,6 +47,11 @@ const app = creerApp({
   depotEntreprise: creerDepotEntreprise(pool),
   depotReferentiels: creerDepotReferentiels(pool),
   depotAdmin,
+  // Limitation partagée en base. Sur un hébergeur sans état, plusieurs
+  // instances répondent aux mêmes requêtes : un compteur en mémoire accorderait
+  // le quota complet à chacune, et la défense contre la force brute
+  // disparaîtrait sans que rien ne le signale.
+  creerLimiteur: creerFabriqueLimiteurBase(pool),
   version,
   demarreLe,
   production: enProduction,
