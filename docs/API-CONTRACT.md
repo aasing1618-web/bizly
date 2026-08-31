@@ -1067,9 +1067,13 @@ Espace **strictement séparé** : table `admins`, table `admin_sessions`, cookie
 côté client — deux domaines d'authentification qui ne se croisent jamais.
 
 Aucune route d'inscription : le premier administrateur se crée en ligne de
-commande (`npm run admin:creer`), sur la machine qui détient déjà l'accès à la
-base. Une page d'inscription admin exposée sur Internet serait la porte d'entrée
-de tout le service.
+commande (`npm run comptes -- admin:creer`), sur la machine qui détient déjà
+l'accès à la base. Une page d'inscription admin exposée sur Internet serait la
+porte d'entrée de tout le service.
+
+**Aucune route de réinitialisation non plus**, pour la même raison. Un mot de
+passe d'administrateur perdu se repose donc en ligne de commande
+(`npm run comptes -- admin:mdp`), jamais par HTTP.
 
 ### 9.1 Authentification
 

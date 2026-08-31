@@ -92,11 +92,20 @@ npm run migrate           # applique ce qui manque
 ### 3.5 Le premier administrateur
 
 ```bash
-npm run admin:creer
+npm run comptes -- admin:creer --email=vous@exemple.fr --nom="Votre nom"
 ```
 
 Le mot de passe est saisi masqué, jamais passé en argument — un argument
-atterrit dans l'historique du shell et dans la liste des processus.
+atterrit dans l'historique du shell et dans la liste des processus. Sur un
+hébergeur sans terminal interactif, `--genere` le tire au sort et l'affiche une
+fois, et `echo … | npm run comptes -- …` le passe par l'entrée standard.
+
+Mot de passe perdu, d'un côté comme de l'autre :
+
+```bash
+npm run comptes -- admin:mdp  --email=vous@exemple.fr
+npm run comptes -- client:mdp --email=client@exemple.fr
+```
 
 ### 3.6 Vérifier le déploiement
 

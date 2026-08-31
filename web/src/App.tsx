@@ -70,9 +70,9 @@ export function App() {
 
 function Centre({ children }: { children: React.ReactNode }) {
   return (
-    <main className="relative flex min-h-dvh items-center justify-center bg-slate-950 p-6 text-slate-800 font-sans overflow-hidden">
+    <main className="relative flex min-h-dvh items-center justify-center bg-slate-950 p-3 sm:p-6 text-slate-800 font-sans overflow-hidden">
       <ShaderBackground className="absolute inset-0 w-full h-full opacity-60 pointer-events-none" />
-      <div className="relative z-10 w-full flex items-center justify-center">
+      <div className="relative z-10 w-full flex items-center justify-center max-w-full">
         {children}
       </div>
     </main>
@@ -81,7 +81,7 @@ function Centre({ children }: { children: React.ReactNode }) {
 
 function Carte({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 rounded-3xl border border-white/20 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+    <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 rounded-2xl sm:rounded-3xl border border-white/20 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden">
       <div className="hidden md:flex flex-col justify-between p-8 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white relative overflow-hidden">
         <div className="space-y-4 relative z-10">
           <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ function Carte({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <section className="p-8 flex flex-col justify-center bg-white">
+      <section className="p-5 sm:p-8 flex flex-col justify-center bg-white">
         <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4 md:hidden">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-amber-400 font-bold text-base shadow-xs">
             ⚡

@@ -45,25 +45,25 @@ export function SectionQuestions({ devise }: { devise: Devise }) {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 p-6 md:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 p-5 sm:p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
+          <div className="space-y-2 max-w-full">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="pill-tag bg-white/10 text-amber-300 border-white/20">
                 💡 Moteur de Décision Bizly
               </span>
               <span className="text-xs font-semibold text-purple-200">14 indicateurs clés</span>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 max-w-full overflow-hidden">
               <HandwritingSvg
                 text="Questions Intelligentes"
-                width={360}
-                height={70}
-                fontSize={38}
+                width={320}
+                height={60}
+                fontSize={32}
                 strokeWidth={1.5}
                 duration={2.5}
-                className="text-amber-400"
+                className="text-amber-400 max-w-full"
               />
             </div>
             <p className="text-xs text-purple-100 max-w-xl font-medium leading-relaxed">

@@ -215,6 +215,26 @@ export function creerDepotAdminMemoire(auth: DepotMemoire): DepotAdminMemoire {
       return admin;
     },
 
+    async listerAdmins() {
+      return admins.map((entree) => ({
+        admin: entree.admin,
+        statut: entree.statut,
+        cree_le: new Date(0),
+        derniere_connexion_le: null,
+      }));
+    },
+
+    async changerMotDePasseAdmin(email, empreinte) {
+      const entree = admins.find((a) => a.admin.email.toLowerCase() === email.toLowerCase());
+      if (entree === undefined) return false;
+
+      entree.mot_de_passe_hash = empreinte;
+      for (const session of sessions) {
+        if (session.admin_id === entree.admin.id) session.revoquee = true;
+      }
+      return true;
+    },
+
     nombreSessionsClient(utilisateurId) {
       return auth.nombreSessionsActives(utilisateurId);
     },

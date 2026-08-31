@@ -264,7 +264,7 @@ export function SectionVentes({ devise, plan = "free", onAllerAuxParametres }: S
                 </select>
               )}
 
-              <div className="grid grid-cols-[1fr_4rem_5rem_2rem] gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_4rem_5rem_2rem] gap-2">
                 <input
                   aria-label={`Libellé de la ligne ${index + 1}`}
                   placeholder="Article"

@@ -25,6 +25,18 @@ npm run admin:creer        # une seule fois : ouvre l'accès à /admin/
 npm start                  # http://localhost:3000
 ```
 
+### Gérer les comptes
+
+```bash
+npm run comptes -- etat                                   # qui existe, et où il se connecte
+npm run comptes -- admin:creer --email=vous@exemple.fr    # accès à /admin/
+npm run comptes -- admin:mdp   --email=vous@exemple.fr    # mot de passe admin oublié
+npm run comptes -- client:mdp  --email=client@exemple.fr  # mot de passe client oublié
+```
+
+Le mot de passe est demandé au clavier sans écho, jamais passé en argument.
+Ajouter `--genere` pour en tirer un au sort et l'afficher une seule fois.
+
 En développement, trois processus (API + les deux fronts) :
 
 ```bash

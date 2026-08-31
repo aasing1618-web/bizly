@@ -75,12 +75,37 @@ export type DepotAdmin = {
   reinitialiserMotDePasse(utilisateurId: string, empreinte: string): Promise<boolean>;
   statistiques(): Promise<StatistiquesBrutes>;
 
-  /** Utilisé par `npm run admin:creer`, jamais exposé en HTTP (§9). */
+  /** Utilisé par `npm run comptes`, jamais exposé en HTTP (§9). */
   creerAdmin(entree: {
     nom: string;
     email: string;
     mot_de_passe_hash: string;
   }): Promise<AdminPublic>;
+
+  /**
+   * Inventaire des administrateurs — `npm run comptes etat`, jamais en HTTP.
+   *
+   * Ne renvoie aucune empreinte : savoir QUI peut ouvrir la console est une
+   * information d'exploitation, le secret qui va avec n'en est pas une.
+   */
+  listerAdmins(): Promise<FicheAdmin[]>;
+
+  /**
+   * Repose le mot de passe d'un administrateur — `npm run comptes admin:mdp`.
+   *
+   * En ligne de commande **uniquement** : une réinitialisation d'admin exposée
+   * en HTTP ferait de cette route la porte d'entrée de tout le service (§9).
+   * `false` si aucun administrateur ne porte cet e-mail.
+   */
+  changerMotDePasseAdmin(email: string, empreinte: string): Promise<boolean>;
+};
+
+/** Fiche d'administrateur pour l'inventaire en ligne de commande. */
+export type FicheAdmin = {
+  admin: AdminPublic;
+  statut: StatutCompte;
+  cree_le: Date;
+  derniere_connexion_le: Date | null;
 };
 
 export class EmailAdminDejaPris extends Error {
@@ -440,6 +465,53 @@ export function creerDepotAdmin(pool: Pool): DepotAdmin {
         if (estViolationUnicite(cause, "admins_email_unique")) throw new EmailAdminDejaPris();
         throw cause;
       }
+    },
+
+    async listerAdmins() {
+      const resultat = await pool.query<{
+        id: string;
+        nom: string;
+        email: string;
+        statut: StatutCompte;
+        cree_le: Date;
+        derniere_connexion_le: Date | null;
+      }>(
+        `SELECT id, nom, email, statut, cree_le, derniere_connexion_le
+           FROM admins
+          ORDER BY cree_le`,
+      );
+
+      return resultat.rows.map((ligne) => ({
+        admin: { id: ligne.id, nom: ligne.nom, email: ligne.email },
+        statut: ligne.statut,
+        cree_le: ligne.cree_le,
+        derniere_connexion_le: ligne.derniere_connexion_le,
+      }));
+    },
+
+    async changerMotDePasseAdmin(email, empreinte) {
+      return dansTransaction(pool, async (client) => {
+        const modifie = await client.query<{ id: string }>(
+          `UPDATE admins SET mot_de_passe_hash = $2
+            WHERE lower(email) = lower($1)
+            RETURNING id`,
+          [email, empreinte],
+        );
+
+        const ligne = modifie.rows[0];
+        if (ligne === undefined) return false;
+
+        // Mêmes raisons que pour un client (`reinitialiserMotDePasse`) : on
+        // repose un mot de passe justement quand l'ancien n'est plus sûr, ou
+        // plus connu. Laisser vivre les sessions ouvertes viderait le geste de
+        // son sens.
+        await client.query(
+          `UPDATE admin_sessions SET revoquee_le = now()
+            WHERE admin_id = $1 AND revoquee_le IS NULL`,
+          [ligne.id],
+        );
+        return true;
+      });
     },
   };
 }

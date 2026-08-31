@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "tsx src/scripts/migrate.ts",
-    "admin:creer": "tsx src/scripts/creerAdmin.ts"
+    "comptes": "tsx src/scripts/comptes.ts",
+    "admin:creer": "tsx src/scripts/comptes.ts admin:creer"
   },
   "dependencies": {
     "@bizly/shared": "*",

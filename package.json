@@ -24,7 +24,8 @@
     "test": "npm run build -w @bizly/shared && npm run test --workspaces --if-present",
     "migrate": "npm run migrate -w @bizly/server",
     "migrate:statut": "npm run migrate -w @bizly/server -- --statut",
-    "admin:creer": "npm run admin:creer -w @bizly/server"
+    "comptes": "npm run comptes -w @bizly/server --",
+    "admin:creer": "npm run comptes -w @bizly/server -- admin:creer"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

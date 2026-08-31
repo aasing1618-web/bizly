@@ -3,7 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 29 août 2026 — Module de paiement Mobile Money & Quota 30 ventes/mois du plan Gratuit intégrés.**
+**Dernière mise à jour : 30 août 2026 — Outil de gestion des comptes (`npm run comptes`) : un mot de passe perdu se repose enfin, côté admin comme côté client.**
 
 > ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont les **fichiers
 > authentiques** transmis par le propriétaire, et non plus la reconstruction
@@ -23,9 +23,26 @@ entreprise, tableau de bord, ventes, dépenses, clients, produits, analyses, par
 ```bash
 npm install && npm run build
 npm run migrate            # doit afficher 4 migrations appliquées
-npm run admin:creer        # crée l'accès à /admin/ — une seule fois
+npm run comptes -- etat    # qui peut se connecter, et où
 npm start                  # http://localhost:3000  et  http://localhost:3000/admin/
 ```
+
+### Je n'arrive pas à me connecter
+
+Diagnostic du 30 août 2026, posé contre la vraie base — **ne pas ré-enquêter** :
+l'API, les cookies, le relais Vite et les bundles servis par Express sont sains.
+Inscription, connexion, tableau de bord et écriture d'une vente ont été rejoués
+de bout en bout (201, 200, KPI justes). Deux causes réelles, dans cet ordre :
+
+1. **Le serveur ne tournait pas.** `npm run dev` met ~60 s à ouvrir ses trois
+   ports sur cette machine (build de `shared`, puis `tsx` et deux Vite). Avant
+   cela, l'interface affiche « Impossible de joindre le serveur ». Vérifier :
+   `netstat -ano | findstr ":3000 :5173"`.
+2. **Le mot de passe était perdu, sans aucun chemin de retour.** La console
+   n'expose ni inscription ni réinitialisation (et ne doit pas, §9 du contrat
+   d'API), et le mot de passe d'un client ne se reposait que depuis cette
+   console devenue inaccessible : la boucle était fermée sur elle-même.
+   `npm run comptes` l'ouvre.
 
 ---
 
@@ -559,7 +576,7 @@ Contrat : `docs/API-CONTRACT.md` §7 (référentiels), §8 (entreprise et compte
 | `GET /api/referentiels` (publique) | `server/src/modules/referentiels/` |
 | `PATCH /api/entreprise`, `PATCH /api/moi`, `POST /api/mot-de-passe` | `server/src/modules/entreprise/` |
 | Console d'administration complète | `server/src/modules/admin/`, `admin/src/` |
-| Création du premier administrateur | `server/src/scripts/creerAdmin.ts` — `npm run admin:creer` |
+| Gestion des comptes (création admin, mots de passe reposés) | `server/src/scripts/comptes.ts` — `npm run comptes` |
 | Choix de la devise à l'inscription | `web/src/composants/ChoixDevise.tsx`, `web/src/pages/Inscription.tsx` |
 | Écran Paramètres (`CLAUDE.md` §8) | `web/src/pages/SectionParametres.tsx` |
 | Jeu de dépendances de test partagé | `server/src/test-utils/dependancesTest.ts` |
@@ -607,7 +624,16 @@ client n'ouvre rien ici, un jeton admin n'ouvre rien côté client.
 commande, sur la machine qui a déjà accès à la base :
 
 ```bash
-npm run admin:creer     # nom, e-mail, mot de passe — saisi masqué, jamais en argument
+npm run comptes -- admin:creer --email=vous@exemple.fr   # mot de passe saisi masqué
+```
+
+Et parce qu'un service qu'on ne peut pas réparer n'est pas fini, le même outil
+repose un mot de passe perdu — des deux côtés :
+
+```bash
+npm run comptes -- etat                                  # qui existe, et où il se connecte
+npm run comptes -- admin:mdp  --email=vous@exemple.fr
+npm run comptes -- client:mdp --email=client@exemple.fr
 ```
 
 La console **ne lit aucune donnée métier** : ni vente, ni dépense, ni client
@@ -714,7 +740,7 @@ cp .env.example .env          # puis remplir DATABASE_URL (pooler, port 6543)
 npm run migrate:statut        # doit afficher 4 migrations appliquees
 npm run migrate               # si l'une est en attente
 npm run build
-npm run admin:creer           # une seule fois : ouvre l'acces a /admin/
+npm run comptes -- etat       # qui peut se connecter, et ou
 npm start                     # http://localhost:3000
 ```
 
@@ -764,5 +790,15 @@ npm test
   - **Module backend `/api/paiement/`** : Initialisation des abonnements Starter Pro (2 500 FCFA/mois ou 25 000 FCFA/an) et Business (5 000 FCFA/mois ou 50 000 FCFA/an), Webhook de confirmation et simulation instantanée.
   - **Interface utilisateur dans `SectionParametres.tsx`** : Choix du cycle (mensuel/annuel), sélection du plan (Pro/Business), choix du moyen de paiement (🌊 Wave / 🟠 Orange Money) et simulation de paiement en 1 clic.
   - **Validation** : `npm run typecheck` à 0 erreur sur les 4 workspaces, 377/377 tests Vitest validés, `npm run build` OK.
+
+### Optimisations Mobile Responsive et Publication Vercel (31 août 2026)
+
+- **Ergonomie Mobile Multi-écrans (`web/` & `admin/`)** :
+  - **Grille de Saisie Ventes (`SectionVentes.tsx`)** : Grille responsive dynamique (`grid-cols-1 sm:grid-cols-[1fr_4rem_5rem_2rem]`) afin de garantir qu'aucun champ ou bouton de suppression de ligne de vente ne dépasse sur écran de smartphone (320px–480px).
+  - **En-têtes et Navigation Tactile (`Accueil.tsx` & `App.tsx` admin)** : En-têtes adaptatifs avec défilement horizontal fluide des pilules d'onglets pour une utilisation à une main sur mobile.
+  - **Titre SVG Interactif (`SectionQuestions.tsx`)** : Dimensionnement adaptatif pour éviter tout rognage sur écran étroit.
+- **Validation Globale** : `npm run typecheck` à 0 erreur sur les 4 espaces de travail, 377/377 tests Vitest validés, bundles `npm run build` construits sans erreur.
+- **Publication GitHub / Déploiement Vercel** : Mises à jour validées et poussées sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel déploie automatiquement la version responsive en production.
+
 
 

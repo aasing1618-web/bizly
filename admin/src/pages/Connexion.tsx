@@ -7,8 +7,9 @@ import { ErreurApiAdmin } from "../lib/api";
  * Connexion à la console.
  *
  * Aucun lien « créer un compte » : les administrateurs se créent en ligne de
- * commande (`npm run admin:creer`). Aucun lien « mot de passe oublié » non
- * plus — il n'existe pas, et afficher un lien mort vaut moins que de le dire.
+ * commande (`npm run comptes -- admin:creer`). Aucun lien « mot de passe
+ * oublié » non plus — il n'existe pas par HTTP, et ne doit pas exister (§9).
+ * On indique donc la commande qui le repose, plutôt qu'un lien mort.
  */
 export function Connexion({
   connecter,
@@ -75,7 +76,11 @@ export function Connexion({
 
         <p className="mt-4 text-center text-xs text-ardoise-400">
           Les comptes d&apos;administration se créent en ligne de commande&nbsp;:{" "}
-          <code className="text-ardoise-400">npm run admin:creer</code>
+          <code className="text-ardoise-400">npm run comptes -- admin:creer</code>
+        </p>
+        <p className="mt-2 text-center text-xs text-ardoise-400/70">
+          Mot de passe oublié&nbsp;?{" "}
+          <code className="text-ardoise-400/70">npm run comptes -- admin:mdp</code>
         </p>
       </div>
     </main>
