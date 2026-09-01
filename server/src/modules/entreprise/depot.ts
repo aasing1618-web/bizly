@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { evaluerAcces } from "../../domaine/abonnement.js";
 import type {
   EntreprisePublique,
   Plan,
@@ -55,6 +56,9 @@ type LigneEntreprise = {
   fuseau: string;
   plan: Plan;
   statut: "ACTIF" | "SUSPENDU";
+  date_expiration_plan: Date | null;
+  essai_expire_le: Date | null;
+  exempt_facturation: boolean;
 };
 
 function versEntreprise(ligne: LigneEntreprise): EntreprisePublique {
@@ -67,6 +71,16 @@ function versEntreprise(ligne: LigneEntreprise): EntreprisePublique {
     fuseau: ligne.fuseau,
     plan: ligne.plan,
     statut: ligne.statut,
+    date_expiration_plan:
+      ligne.date_expiration_plan === null ? null : ligne.date_expiration_plan.toISOString(),
+    acces: evaluerAcces(
+      {
+        exempt: ligne.exempt_facturation,
+        essaiExpireLe: ligne.essai_expire_le,
+        abonnementExpireLe: ligne.date_expiration_plan,
+      },
+      new Date(),
+    ),
   };
 }
 
@@ -123,6 +137,7 @@ export function creerDepotEntreprise(pool: Pool): DepotEntreprise {
       const requete =
         colonnes.length === 0
           ? `SELECT e.id, e.nom, e.secteur_code, e.pays, e.fuseau, e.plan, e.statut,
+                    e.date_expiration_plan, e.essai_expire_le, e.exempt_facturation,
                     d.code AS devise_code, d.decimales AS devise_decimales
                FROM entreprises e
                JOIN devises d ON d.code = e.devise
@@ -130,9 +145,11 @@ export function creerDepotEntreprise(pool: Pool): DepotEntreprise {
           : `WITH modifiee AS (
                UPDATE entreprises SET ${colonnes.join(", ")}
                 WHERE id = $1
-                RETURNING id, nom, secteur_code, pays, devise, fuseau, plan, statut
+                RETURNING id, nom, secteur_code, pays, devise, fuseau, plan, statut,
+                          date_expiration_plan, essai_expire_le, exempt_facturation
              )
              SELECT m.id, m.nom, m.secteur_code, m.pays, m.fuseau, m.plan, m.statut,
+                    m.date_expiration_plan, m.essai_expire_le, m.exempt_facturation,
                     d.code AS devise_code, d.decimales AS devise_decimales
                FROM modifiee m
                JOIN devises d ON d.code = m.devise`;

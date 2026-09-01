@@ -224,6 +224,13 @@ export function creerDepotAdminMemoire(auth: DepotMemoire): DepotAdminMemoire {
       }));
     },
 
+    async definirExemptionFacturation(entrepriseId, exempt) {
+      const existe = auth.tousLesComptes().some((c) => c.entreprise.id === entrepriseId);
+      if (!existe) return false;
+      if (exempt) auth.exempter(entrepriseId);
+      return true;
+    },
+
     async changerMotDePasseAdmin(email, empreinte) {
       const entree = admins.find((a) => a.admin.email.toLowerCase() === email.toLowerCase());
       if (entree === undefined) return false;

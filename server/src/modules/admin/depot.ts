@@ -98,6 +98,14 @@ export type DepotAdmin = {
    * `false` si aucun administrateur ne porte cet e-mail.
    */
   changerMotDePasseAdmin(email: string, empreinte: string): Promise<boolean>;
+
+  /**
+   * Exempte — ou remet à la facturation — une entreprise. CLI uniquement.
+   *
+   * Sert aux comptes du propriétaire de la plateforme, qui ne doivent jamais
+   * être bloqués par leur propre produit. `false` si l'entreprise n'existe pas.
+   */
+  definirExemptionFacturation(entrepriseId: string, exempt: boolean): Promise<boolean>;
 };
 
 /** Fiche d'administrateur pour l'inventaire en ligne de commande. */
@@ -487,6 +495,14 @@ export function creerDepotAdmin(pool: Pool): DepotAdmin {
         cree_le: ligne.cree_le,
         derniere_connexion_le: ligne.derniere_connexion_le,
       }));
+    },
+
+    async definirExemptionFacturation(entrepriseId, exempt) {
+      const res = await pool.query(
+        `UPDATE entreprises SET exempt_facturation = $2 WHERE id = $1 RETURNING id`,
+        [entrepriseId, exempt],
+      );
+      return res.rowCount === 1;
     },
 
     async changerMotDePasseAdmin(email, empreinte) {

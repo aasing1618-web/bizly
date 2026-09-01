@@ -31,7 +31,14 @@ import { schemaMotDePasse } from "../modules/auth/validation.js";
  * ou tiré au sort avec `--genere`.
  */
 
-const COMMANDES = ["etat", "admin:creer", "admin:mdp", "client:mdp"] as const;
+const COMMANDES = [
+  "etat",
+  "admin:creer",
+  "admin:mdp",
+  "client:mdp",
+  "exempter",
+  "facturer",
+] as const;
 type Commande = (typeof COMMANDES)[number];
 
 const USAGE = `
@@ -48,6 +55,12 @@ Gestion des comptes Bizly
 
   npm run comptes -- client:mdp --email=client@exemple.fr
       Repose le mot de passe d'un utilisateur de l'application et coupe ses sessions.
+
+  npm run comptes -- exempter --email=vous@exemple.fr
+      Dispense ce compte de tout paiement : jamais bloqué, quelle que soit la date.
+
+  npm run comptes -- facturer --email=client@exemple.fr
+      Remet le compte dans le régime normal (essai puis abonnement).
 
 Options
   --genere    Tire un mot de passe au sort et l'affiche UNE fois, au lieu de le demander.
@@ -300,6 +313,35 @@ async function etat(): Promise<void> {
   );
 }
 
+/**
+ * Exempte un compte client de toute facturation, ou l'y remet.
+ *
+ * L'entreprise est désignée par l'e-mail de l'un de ses utilisateurs : c'est
+ * ce que le propriétaire a sous la main, pas un UUID.
+ */
+async function exemption(args: Arguments, exempt: boolean): Promise<void> {
+  const email = exigerEmail(args.email);
+
+  const compte = await depotAuth.trouverCompteParEmail(email);
+  if (compte === null) {
+    throw new Error(
+      `Aucun compte client avec l'adresse ${email}. ` +
+        "« npm run comptes -- etat » liste ceux qui existent.",
+    );
+  }
+
+  const fait = await depotAdmin.definirExemptionFacturation(compte.entreprise.id, exempt);
+  if (!fait) throw new Error("Entreprise introuvable.");
+
+  stdout.write(
+    exempt
+      ? `\n${compte.entreprise.nom} (${email}) est exemptée de facturation.\n` +
+          "Ce compte ne sera jamais bloqué, quelle que soit la date.\n\n"
+      : `\n${compte.entreprise.nom} (${email}) repasse au régime normal :\n` +
+          "essai de deux mois, puis abonnement Pro obligatoire.\n\n",
+  );
+}
+
 async function creerAdmin(args: Arguments): Promise<void> {
   // Sans `--email`, on demande — `npm run admin:creer` sans aucun argument
   // reste le geste documenté sur l'écran de connexion de la console.
@@ -399,6 +441,10 @@ async function principal(): Promise<void> {
       return motDePasseAdmin(args);
     case "client:mdp":
       return motDePasseClient(args);
+    case "exempter":
+      return exemption(args, true);
+    case "facturer":
+      return exemption(args, false);
   }
 }
 

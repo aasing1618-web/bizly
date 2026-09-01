@@ -18,6 +18,7 @@ export const CODES_ERREUR = [
   "CONFLIT",
   "TROP_DE_REQUETES",
   "LIMITE_PLAN_ATTEINTE",
+  "ABONNEMENT_EXPIRE",
   "ERREUR_INTERNE",
 ] as const;
 

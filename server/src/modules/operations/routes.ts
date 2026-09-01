@@ -1,6 +1,7 @@
 import { Router, type Request } from "express";
 import { erreurs } from "../../http/erreurs.js";
 import { analyser } from "../../http/validation.js";
+import { exigerSessionActive } from "../../http/abonnement.js";
 import { contexteDe, exigerSession } from "../../http/session.js";
 import type { ServiceAuth } from "../auth/service.js";
 import type { ContexteEntreprise, ServiceOperations } from "./service.js";
@@ -53,7 +54,9 @@ export function creerRouteurOperations(options: OptionsRouteurOperations): Route
   // Middleware posé route par route, et NON via `routeur.use(...)` : monté sur
   // le routeur entier, il intercepterait aussi les chemins /api inconnus, qui
   // répondraient 401 au lieu du 404 promis par docs/API-CONTRACT.md §0.
-  const protege = exigerSession(serviceAuth);
+  // Session valide ET abonnement en cours : un essai termine ferme tout le
+  // module metier, pas seulement l ecriture (voir http/abonnement.ts).
+  const protege = exigerSessionActive(serviceAuth);
 
   // ---------------------------------------------------------------- ventes --
 

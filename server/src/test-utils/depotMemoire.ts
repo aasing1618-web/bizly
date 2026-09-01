@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { EntreprisePublique, ReponseSession, UtilisateurPublic } from "@bizly/shared";
+import { evaluerAcces } from "../domaine/abonnement.js";
 import {
   EmailDejaPris,
   type CompteAvecSecret,
@@ -84,7 +85,20 @@ export type DepotMemoire = DepotAuth & {
   definirEmpreinteMotDePasse(utilisateurId: string, empreinte: string): void;
   /** Révoque toutes les sessions de l'utilisateur sauf celle d'empreinte donnée. */
   revoquerSessionsSauf(utilisateurId: string, empreinteHex: string | null): void;
+  /** Termine l'essai d'une entreprise, pour tester le blocage. */
+  expirerEssai(entrepriseId: string): void;
+  /** Pose une échéance d'abonnement payé et repasse l'entreprise en Pro. */
+  definirAbonnement(entrepriseId: string, echeance: Date): void;
+  /** Exempte une entreprise de toute facturation. */
+  exempter(entrepriseId: string): void;
 };
+
+/** Deux mois, comme le défaut posé par la base. */
+function finEssai(): Date {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 2);
+  return date;
+}
 
 export function creerDepotMemoire(): DepotMemoire {
   const comptes: Compte[] = [];
@@ -133,6 +147,12 @@ export function creerDepotMemoire(): DepotMemoire {
         // administrateur change ce champ (CLAUDE.md §7.4).
         plan: "free",
         statut: "ACTIF",
+        date_expiration_plan: null,
+        // Comme la base (migration 0007) : deux mois offerts dès la création.
+        acces: evaluerAcces(
+          { exempt: false, essaiExpireLe: finEssai(), abonnementExpireLe: null },
+          new Date(),
+        ),
       };
 
       comptes.push({
@@ -235,6 +255,42 @@ export function creerDepotMemoire(): DepotMemoire {
 
     tousLesComptes() {
       return comptes;
+    },
+
+    expirerEssai(entrepriseId) {
+      for (const compte of comptes) {
+        if (compte.entreprise.id !== entrepriseId) continue;
+        compte.entreprise.acces = evaluerAcces(
+          { exempt: false, essaiExpireLe: new Date(Date.now() - 1000), abonnementExpireLe: null },
+          new Date(),
+        );
+      }
+    },
+
+    definirAbonnement(entrepriseId, echeance) {
+      for (const compte of comptes) {
+        if (compte.entreprise.id !== entrepriseId) continue;
+        compte.entreprise.plan = "pro";
+        compte.entreprise.date_expiration_plan = echeance.toISOString();
+        compte.entreprise.acces = evaluerAcces(
+          {
+            exempt: false,
+            essaiExpireLe: new Date(Date.now() - 1000),
+            abonnementExpireLe: echeance,
+          },
+          new Date(),
+        );
+      }
+    },
+
+    exempter(entrepriseId) {
+      for (const compte of comptes) {
+        if (compte.entreprise.id !== entrepriseId) continue;
+        compte.entreprise.acces = evaluerAcces(
+          { exempt: true, essaiExpireLe: null, abonnementExpireLe: null },
+          new Date(),
+        );
+      }
     },
 
     definirEmpreinteMotDePasse(utilisateurId, empreinte) {

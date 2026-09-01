@@ -9,6 +9,7 @@ import {
 } from "../../domaine/periodes.js";
 import { DateInvalide } from "../../domaine/temps.js";
 import { erreurs } from "../../http/erreurs.js";
+import { exigerSessionActive } from "../../http/abonnement.js";
 import { contexteDe, exigerSession } from "../../http/session.js";
 import { analyser } from "../../http/validation.js";
 import type { ServiceAuth } from "../auth/service.js";
@@ -37,7 +38,9 @@ export type OptionsRouteurQuestions = {
 export function creerRouteurQuestions(options: OptionsRouteurQuestions): Router {
   const { serviceAuth, depot, horloge = () => new Date() } = options;
   const routeur = Router();
-  const protege = exigerSession(serviceAuth);
+  // Session valide ET abonnement en cours : un essai termine ferme tout le
+  // module metier, pas seulement l ecriture (voir http/abonnement.ts).
+  const protege = exigerSessionActive(serviceAuth);
 
   routeur.get("/questions", protege, async (requete, reponse) => {
     const { entreprise } = contexteDe(requete);

@@ -1,3 +1,4 @@
+import type { EtatAcces } from "./abonnement.js";
 import type { Devise } from "./montant.js";
 
 /**
@@ -49,6 +50,14 @@ export type EntreprisePublique = {
   plan: Plan;
   statut: StatutCompte;
   date_expiration_plan?: string | null;
+  /**
+   * Droit d'accès calculé par le serveur — essai, abonnement, blocage.
+   *
+   * Joint à toute réponse de session pour que l'interface n'ait aucune date à
+   * interpréter : elle lit `acces.bloque`, rien d'autre. Le calcul lui-même
+   * reste serveur (CLAUDE.md §7.2).
+   */
+  acces: EtatAcces;
 };
 
 /** Réponse de `POST /api/inscription`, `POST /api/connexion` et `GET /api/moi`. */

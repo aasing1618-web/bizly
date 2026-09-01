@@ -31,6 +31,7 @@ import { creerDepotReferentielsMemoire } from "./depotReferentielsMemoire.js";
 
 import { creerDepotPaiementMemoire } from "./depotPaiementMemoire.js";
 import { creerServicePaiement } from "../modules/paiement/service.js";
+import type { DepotPaiement } from "../modules/paiement/depot.js";
 
 export type PiecesTest = {
   depotAuth: DepotMemoire;
@@ -39,6 +40,8 @@ export type PiecesTest = {
 };
 
 export type SurchargesTest = Partial<DependancesApp> & {
+  /** Le dépôt de paiements, quand le test veut le piloter. */
+  depotPaiement?: DepotPaiement;
   /** Le dépôt d'authentification à partager. Créé si absent. */
   depotAuth?: DepotMemoire;
 };
@@ -56,7 +59,8 @@ export function assemblerTest(surcharges: SurchargesTest = {}): {
   const depotAdmin =
     (surcharges.depotAdmin as DepotAdminMemoire | undefined) ?? creerDepotAdminMemoire(depotAuth);
   const depotPaiement = surcharges.depotPaiement ?? creerDepotPaiementMemoire(depotAuth);
-  const servicePaiement = surcharges.servicePaiement ?? creerServicePaiement(depotPaiement);
+  const servicePaiement =
+    surcharges.servicePaiement ?? creerServicePaiement({ depot: depotPaiement, lienWave: null });
 
   const dependances: DependancesApp = {
     sonderBase: async (): Promise<EtatBase> => ({ statut: "ok", latence_ms: 1 }),
@@ -71,7 +75,6 @@ export function assemblerTest(surcharges: SurchargesTest = {}): {
     depotEntreprise,
     depotReferentiels: creerDepotReferentielsMemoire(),
     depotAdmin,
-    depotPaiement,
     // En mémoire : les tests n'ont pas de base, et la limitation partagée est
     // couverte par la vérification de fin de vague contre Postgres.
     creerLimiteur: fabriqueLimiteurMemoire,

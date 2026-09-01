@@ -14,6 +14,7 @@ import { schemaMotDePasse } from "../auth/validation.js";
 import { hacherMotDePasse } from "../auth/motDePasse.js";
 import type { MetaRequete } from "../auth/service.js";
 import type { DepotAdmin } from "./depot.js";
+import type { ServicePaiement } from "../paiement/service.js";
 import type { ContexteAdmin, ServiceAdmin } from "./service.js";
 
 /**
@@ -36,6 +37,8 @@ declare global {
 export type OptionsRouteurAdmin = {
   service: ServiceAdmin;
   depot: DepotAdmin;
+  /** Validation des paiements Wave — le service est partagé avec le client. */
+  servicePaiement: ServicePaiement;
   production: boolean;
   creerLimiteur: FabriqueLimiteur;
 };
@@ -53,6 +56,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const schemaConnexion = z.object({
   email: z.string().trim().min(1, "L'adresse e-mail est requise.").max(254),
   mot_de_passe: z.string().min(1, "Le mot de passe est requis.").max(200),
+});
+
+const schemaRefusPaiement = z.object({
+  motif: z
+    .string()
+    .trim()
+    .min(3, "Indiquez pourquoi ce paiement est refusé — le client le lira.")
+    .max(300, "Ce motif est trop long."),
 });
 
 const schemaFiltres = z.object({
@@ -121,7 +132,7 @@ function identifiant(requete: Request, quoi: string): string {
 }
 
 export function creerRouteurAdmin(options: OptionsRouteurAdmin): Router {
-  const { service, depot, production, creerLimiteur } = options;
+  const { service, depot, servicePaiement, production, creerLimiteur } = options;
   const routeur = Router();
   const protege = exigerAdmin(service);
 
@@ -210,6 +221,38 @@ export function creerRouteurAdmin(options: OptionsRouteurAdmin): Router {
       reponse.status(204).end();
     },
   );
+
+  // --------------------------------------------------------------- paiements --
+
+  /**
+   * File des paiements Wave déclarés par les clients et pas encore tranchés.
+   *
+   * Contient l'e-mail du propriétaire et la référence Wave : ce sont les deux
+   * éléments dont l'administrateur a besoin pour retrouver le versement dans
+   * son propre historique Wave avant de valider.
+   */
+  routeur.get("/admin/paiements", protege, async (_requete, reponse) => {
+    reponse.json({ elements: await servicePaiement.listerAValider() });
+  });
+
+  /** Le bouton « Valider le paiement » : ouvre l'accès du client sur-le-champ. */
+  routeur.post("/admin/paiements/:id/valider", protege, async (requete, reponse) => {
+    const resultat = await servicePaiement.valider(
+      identifiant(requete, "Paiement"),
+      contexteAdminDe(requete).admin.id,
+    );
+    reponse.json(resultat);
+  });
+
+  routeur.post("/admin/paiements/:id/refuser", protege, async (requete, reponse) => {
+    const corps = analyser(schemaRefusPaiement, requete.body);
+    await servicePaiement.refuser(
+      identifiant(requete, "Paiement"),
+      contexteAdminDe(requete).admin.id,
+      corps.motif,
+    );
+    reponse.status(204).end();
+  });
 
   // ----------------------------------------------------------- statistiques --
 

@@ -30,7 +30,6 @@ import { monterStatiques } from "./statiques.js";
 
 import { creerRouteurPaiement } from "./modules/paiement/routes.js";
 import type { ServicePaiement } from "./modules/paiement/service.js";
-import type { DepotPaiement } from "./modules/paiement/depot.js";
 
 export type DependancesApp = {
   sonderBase: SondeBase;
@@ -45,7 +44,6 @@ export type DependancesApp = {
   depotEntreprise: DepotEntreprise;
   depotReferentiels: DepotReferentiels;
   depotAdmin: DepotAdmin;
-  depotPaiement: DepotPaiement;
   /**
    * Fabrique de limiteurs de débit.
    *
@@ -124,6 +122,7 @@ export function creerApp(deps: DependancesApp): Express {
     creerRouteurAdmin({
       service: deps.serviceAdmin,
       depot: deps.depotAdmin,
+      servicePaiement: deps.servicePaiement,
       production: deps.production,
       creerLimiteur: deps.creerLimiteur,
     }),
@@ -143,7 +142,6 @@ export function creerApp(deps: DependancesApp): Express {
     creerRouteurPaiement({
       serviceAuth: deps.serviceAuth,
       servicePaiement: deps.servicePaiement,
-      depotPaiement: deps.depotPaiement,
     }),
   );
   api.use(routeApiIntrouvable);

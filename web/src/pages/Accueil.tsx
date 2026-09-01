@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SEUIL_ALERTE_JOURS, type EtatAcces } from "@bizly/shared";
 import type { EntreprisePublique, ReponseSession, UtilisateurPublic } from "@bizly/shared";
 import { SectionCatalogue } from "./SectionCatalogue";
 import { SectionDepenses } from "./SectionDepenses";
@@ -112,6 +113,8 @@ export function Accueil({ session, deconnecter, appliquer }: AccueilProps) {
         </nav>
       </header>
 
+      <BandeauEcheance acces={entreprise.acces} versParametres={() => setOnglet("parametres")} />
+
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
         <main className="lg:col-span-3">
           {onglet === "tableau" && <TableauDeBord devise={entreprise.devise} />}
@@ -168,6 +171,48 @@ export function Accueil({ session, deconnecter, appliquer }: AccueilProps) {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Avertissement de fin d'essai ou d'abonnement.
+ *
+ * N'apparaît que dans les deux dernières semaines : affiché dès le premier
+ * jour, il deviendrait un décor que plus personne ne lit — et il ne resterait
+ * plus rien pour signaler la vraie échéance.
+ */
+function BandeauEcheance({
+  acces,
+  versParametres,
+}: {
+  acces: EtatAcces;
+  versParametres: () => void;
+}) {
+  const jours = acces.jours_restants;
+  if (acces.bloque || jours === null || jours > SEUIL_ALERTE_JOURS) return null;
+
+  const urgent = jours <= 3;
+
+  return (
+    <div
+      role="status"
+      className={`border-b px-4 py-2.5 text-center text-sm font-semibold ${
+        urgent
+          ? "border-red-200 bg-red-50 text-red-800"
+          : "border-amber-200 bg-amber-50 text-amber-900"
+      }`}
+    >
+      {acces.motif === "ESSAI"
+        ? `Votre essai gratuit se termine dans ${jours} jour${jours > 1 ? "s" : ""}.`
+        : `Votre abonnement Pro expire dans ${jours} jour${jours > 1 ? "s" : ""}.`}{" "}
+      <button
+        type="button"
+        onClick={versParametres}
+        className="underline underline-offset-4 hover:no-underline"
+      >
+        Payer 2 000 FCFA par Wave
+      </button>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type {
   UtilisateurPublic,
 } from "@bizly/shared";
 import { dansTransaction, estViolationUnicite } from "../../db/transaction.js";
+import { evaluerAcces } from "../../domaine/abonnement.js";
 
 /**
  * Accès aux données d'authentification.
@@ -93,6 +94,9 @@ type LigneCompte = {
   fuseau: string;
   plan: Plan;
   statut_entreprise: "ACTIF" | "SUSPENDU";
+  date_expiration_plan: Date | null;
+  essai_expire_le: Date | null;
+  exempt_facturation: boolean;
 };
 
 function versUtilisateur(ligne: LigneCompte): UtilisateurPublic {
@@ -114,6 +118,16 @@ function versEntreprise(ligne: LigneCompte): EntreprisePublique {
     fuseau: ligne.fuseau,
     plan: ligne.plan,
     statut: ligne.statut_entreprise,
+    date_expiration_plan:
+      ligne.date_expiration_plan === null ? null : ligne.date_expiration_plan.toISOString(),
+    acces: evaluerAcces(
+      {
+        exempt: ligne.exempt_facturation,
+        essaiExpireLe: ligne.essai_expire_le,
+        abonnementExpireLe: ligne.date_expiration_plan,
+      },
+      new Date(),
+    ),
   };
 }
 
@@ -139,7 +153,10 @@ const COLONNES_COMPTE = `
   d.decimales         AS devise_decimales,
   e.fuseau            AS fuseau,
   e.plan              AS plan,
-  e.statut            AS statut_entreprise
+  e.statut            AS statut_entreprise,
+  e.date_expiration_plan AS date_expiration_plan,
+  e.essai_expire_le      AS essai_expire_le,
+  e.exempt_facturation   AS exempt_facturation
 `;
 
 // ---------------------------------------------------------------------------

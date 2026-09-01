@@ -32,7 +32,16 @@ npm run comptes -- etat                                   # qui existe, et où i
 npm run comptes -- admin:creer --email=vous@exemple.fr    # accès à /admin/
 npm run comptes -- admin:mdp   --email=vous@exemple.fr    # mot de passe admin oublié
 npm run comptes -- client:mdp  --email=client@exemple.fr  # mot de passe client oublié
+npm run comptes -- exempter    --email=vous@exemple.fr    # jamais facturé, jamais bloqué
+npm run comptes -- facturer    --email=client@exemple.fr  # retour au régime normal
 ```
+
+### Abonnement
+
+Deux mois d'essai à l'inscription, puis plan Pro à **2 000 FCFA/mois** payé par
+Wave au **77 860 82 47**. Le client déclare sa référence de transaction ;
+un administrateur la valide depuis `/admin/` → onglet **Paiements**, ce qui
+rouvre l'accès pour trente jours. Aucun paiement ne s'active tout seul.
 
 Le mot de passe est demandé au clavier sans écho, jamais passé en argument.
 Ajouter `--genere` pour en tirer un au sort et l'afficher une seule fois.

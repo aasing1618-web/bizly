@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import { z } from "zod";
 import { LIMITE_LISTE_DEFAUT, LIMITE_LISTE_MAX, MONTANT_MAX_SUR } from "@bizly/shared";
 import { erreurs } from "../../http/erreurs.js";
+import { exigerSessionActive } from "../../http/abonnement.js";
 import { contexteDe, exigerSession } from "../../http/session.js";
 import { analyser } from "../../http/validation.js";
 import type { ServiceAuth } from "../auth/service.js";
@@ -78,7 +79,9 @@ function identifiant(requete: Request, quoi: string): string {
 export function creerRouteurCatalogue(options: OptionsRouteurCatalogue): Router {
   const { serviceAuth, depot } = options;
   const routeur = Router();
-  const protege = exigerSession(serviceAuth);
+  // Session valide ET abonnement en cours : un essai termine ferme tout le
+  // module metier, pas seulement l ecriture (voir http/abonnement.ts).
+  const protege = exigerSessionActive(serviceAuth);
 
   const entrepriseDe = (requete: Request): string => contexteDe(requete).entreprise.id;
 

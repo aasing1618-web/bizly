@@ -8,3 +8,4 @@ export * from "./operations.js";
 export * from "./questions.js";
 export * from "./referentiels.js";
 export * from "./paiement.js";
+export * from "./abonnement.js";

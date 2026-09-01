@@ -49,7 +49,12 @@ const depotCatalogue = creerDepotCatalogue(pool);
 const depotAuth = creerDepotPg(pool);
 const depotAdmin = creerDepotAdmin(pool);
 const depotPaiement = creerDepotPaiement(pool);
-const servicePaiement = creerServicePaiement(depotPaiement);
+const servicePaiement = creerServicePaiement({
+  depot: depotPaiement,
+  // Lien Wave Business, si le propriétaire en a un. Absent = le client voit le
+  // numéro et la marche à suivre, jamais un bouton qui ne mène nulle part.
+  lienWave: process.env["WAVE_LIEN_PAIEMENT"]?.trim() || null,
+});
 
 /**
  * Racine des bundles front.
@@ -73,7 +78,6 @@ export const app = creerApp({
   depotEntreprise: creerDepotEntreprise(pool),
   depotReferentiels: creerDepotReferentiels(pool),
   depotAdmin,
-  depotPaiement,
   creerLimiteur: creerFabriqueLimiteurBase(pool),
   version: lireVersion(),
   demarreLe: Date.now(),

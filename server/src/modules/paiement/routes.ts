@@ -1,106 +1,62 @@
-import { Router, type Request } from "express";
+import { Router } from "express";
 import { z } from "zod";
+import { exigerSession } from "../../http/session.js";
+import { contexteDe } from "../../http/session.js";
+import { detailsValidation, premierMessage } from "../../http/validation.js";
 import { erreurs } from "../../http/erreurs.js";
-import { contexteDe, exigerSession } from "../../http/session.js";
-import { analyser } from "../../http/validation.js";
 import type { ServiceAuth } from "../auth/service.js";
-import { ErreurPaiement, type ServicePaiement } from "./service.js";
-import type { DepotPaiement } from "./depot.js";
+import type { ServicePaiement } from "./service.js";
+
+/**
+ * Routes d'abonnement — côté client.
+ *
+ * **Volontairement dépourvues de webhook et de route de confirmation.** Les
+ * versions précédentes exposaient `POST /api/paiement/webhook` sans vérifier
+ * aucune signature, et `POST /api/paiement/simuler-confirmation` permettait à
+ * un client d'activer lui-même son propre abonnement. L'un et l'autre
+ * offraient un plan payant à qui savait les appeler. Un accès payant ne
+ * s'ouvre plus que depuis la console d'administration, authentifiée.
+ *
+ * Ces routes restent accessibles à une entreprise bloquée : c'est la seule
+ * porte qui doit rester ouverte quand toutes les autres se ferment.
+ */
 
 export type OptionsRouteurPaiement = {
   serviceAuth: ServiceAuth;
   servicePaiement: ServicePaiement;
-  depotPaiement: DepotPaiement;
 };
 
-const schemaInitialiser = z.object({
-  plan: z.enum(["pro", "business"]),
-  cycle: z.enum(["mensuel", "annuel"]),
-  moyen_paiement: z.enum(["wave", "orange_money"]),
-});
-
-const schemaWebhook = z.object({
-  reference_transaction: z.string().min(1),
-  statut: z.enum(["valide", "echoue"]),
-  secret_signature: z.string().optional(),
-});
-
-const schemaSimuler = z.object({
-  reference_transaction: z.string().min(1),
+const schemaDeclarer = z.object({
+  reference_wave: z
+    .string()
+    .trim()
+    .min(4, "La référence Wave est requise — elle figure dans votre reçu Wave.")
+    .max(80, "Cette référence est trop longue.")
+    // Wave affiche des références alphanumériques ; on refuse ce qui n'y
+    // ressemble pas plutôt que de stocker un paragraphe.
+    .regex(/^[A-Za-z0-9._\-\s]+$/, "La référence ne doit contenir que lettres, chiffres et tirets."),
 });
 
 export function creerRouteurPaiement(options: OptionsRouteurPaiement): Router {
-  const { serviceAuth, servicePaiement, depotPaiement } = options;
+  const { serviceAuth, servicePaiement } = options;
   const routeur = Router();
   const protege = exigerSession(serviceAuth);
 
-  const entrepriseDe = (requete: Request): string => contexteDe(requete).entreprise.id;
-
-  // Initialiser la transaction de paiement (Wave, Orange Money)
-  routeur.post(["/paiement/initialiser", "/initialiser"], protege, async (requete, reponse) => {
-    const corps = analyser(schemaInitialiser, requete.body);
-    try {
-      const res = await servicePaiement.initialiserPaiement(entrepriseDe(requete), corps);
-      reponse.status(201).json(res);
-    } catch (err) {
-      if (err instanceof ErreurPaiement) {
-        throw erreurs.validation(err.message);
-      }
-      throw err;
-    }
+  routeur.get("/paiement/statut", protege, async (requete, reponse) => {
+    reponse.status(200).json(await servicePaiement.statut(contexteDe(requete)));
   });
 
-  // Webhook public appelé par la passerelle de paiement
-  routeur.post(["/paiement/webhook", "/webhook"], async (requete, reponse) => {
-    const corps = analyser(schemaWebhook, requete.body);
-    try {
-      const res = await servicePaiement.traiterWebhook({
-        reference_transaction: corps.reference_transaction,
-        statut: corps.statut,
-        ...(corps.secret_signature ? { secret_signature: corps.secret_signature } : {}),
-      });
-      reponse.json(res);
-    } catch (err) {
-      if (err instanceof ErreurPaiement) {
-        reponse.status(err.codeHttp).json({ erreur: err.message });
-        return;
-      }
-      throw err;
+  routeur.post("/paiement/declarer", protege, async (requete, reponse) => {
+    const analyse = schemaDeclarer.safeParse(requete.body);
+    if (!analyse.success) {
+      throw erreurs.validation(premierMessage(analyse.error), detailsValidation(analyse.error));
     }
-  });
 
-  // Simulation instantanée de confirmation de paiement (Dev / Demo)
-  routeur.post(["/paiement/simuler-confirmation", "/simuler-confirmation"], protege, async (requete, reponse) => {
-    const corps = analyser(schemaSimuler, requete.body);
-    try {
-      const res = await servicePaiement.simulerConfirmation(entrepriseDe(requete), corps.reference_transaction);
-      reponse.json(res);
-    } catch (err) {
-      if (err instanceof ErreurPaiement) {
-        throw erreurs.validation(err.message);
-      }
-      throw err;
-    }
-  });
-
-  // Statut de l'abonnement actif
-  routeur.get(["/paiement/statut", "/statut"], protege, async (requete, reponse) => {
-    const entrepriseId = entrepriseDe(requete);
-    const abo = await depotPaiement.lireAbonnementActif(entrepriseId);
-    const session = contexteDe(requete);
-
-    const dateExpStr = session.entreprise.date_expiration_plan || abo?.expire_le || null;
-    const dateExp = dateExpStr ? new Date(dateExpStr) : null;
-    const estExpire = dateExp ? dateExp.getTime() < Date.now() : false;
-
-    reponse.json({
-      plan: session.entreprise.plan,
-      statut_entreprise: session.entreprise.statut,
-      date_expiration: dateExpStr,
-      est_expire: estExpire,
-      est_payant: session.entreprise.plan !== "free",
-      dernier_moyen_paiement: abo?.moyen_paiement ?? null,
-    });
+    const etat = await servicePaiement.declarer(
+      contexteDe(requete),
+      analyse.data.reference_wave,
+    );
+    reponse.status(201).json(etat);
   });
 
   return routeur;

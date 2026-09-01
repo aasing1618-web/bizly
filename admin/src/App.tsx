@@ -4,6 +4,7 @@ import { Carte, Etiquette } from "./composants/Briques";
 import { useSessionAdmin } from "./lib/session";
 import { Connexion } from "./pages/Connexion";
 import { Entreprises } from "./pages/Entreprises";
+import { Paiements } from "./pages/Paiements";
 import { Statistiques } from "./pages/Statistiques";
 
 /**
@@ -15,7 +16,7 @@ import { Statistiques } from "./pages/Statistiques";
  */
 export function App() {
   const { etat, connecter, deconnecter } = useSessionAdmin();
-  const [onglet, setOnglet] = useState<"entreprises" | "etat">("entreprises");
+  const [onglet, setOnglet] = useState<"entreprises" | "paiements" | "etat">("entreprises");
 
   if (etat.phase === "chargement") {
     return (
@@ -72,6 +73,7 @@ export function App() {
           {(
             [
               ["entreprises", "🏢 Entreprises", "pill-amber"],
+              ["paiements", "💳 Paiements", "pill-emerald"],
               ["etat", "⚡ État du service", "pill-indigo"],
             ] as const
           ).map(([cle, libelle, stylePilule]) => {
@@ -96,14 +98,14 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        {onglet === "entreprises" ? (
+        {onglet === "entreprises" && (
           <>
             <Statistiques />
             <Entreprises />
           </>
-        ) : (
-          <EtatService />
         )}
+        {onglet === "paiements" && <Paiements />}
+        {onglet === "etat" && <EtatService />}
       </main>
     </div>
   );

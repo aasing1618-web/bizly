@@ -3,7 +3,7 @@
 > Mis à jour à la fin de chaque vague. À lire en premier quand on reprend le
 > projet après une pause, avant `CLAUDE.md`.
 
-**Dernière mise à jour : 30 août 2026 — Outil de gestion des comptes (`npm run comptes`) : un mot de passe perdu se repose enfin, côté admin comme côté client.**
+**Dernière mise à jour : 1er septembre 2026 — Essai de 2 mois, blocage, abonnement Pro à 2 000 FCFA payé par Wave, validation manuelle depuis `/admin/`.**
 
 > ⚠️ **À lire en premier** : `CLAUDE.md` et `GEMINI.md` sont les **fichiers
 > authentiques** transmis par le propriétaire, et non plus la reconstruction
@@ -26,6 +26,37 @@ npm run migrate            # doit afficher 4 migrations appliquées
 npm run comptes -- etat    # qui peut se connecter, et où
 npm start                  # http://localhost:3000  et  http://localhost:3000/admin/
 ```
+
+### Abonnement : essai de deux mois puis 2 000 FCFA/mois
+
+Décidé le 1er septembre 2026, livré et vérifié contre la vraie base.
+
+| Règle | Où |
+|---|---|
+| Deux mois d'essai à l'inscription | `db/migrations/0007` — défaut posé par la **base**, pas par le code |
+| Décision d'accès (essai / abonné / exempt / bloqué) | `server/src/domaine/abonnement.ts` — fonction pure, 12 cas de référence |
+| Fermeture de l'application | `server/src/http/abonnement.ts` → **402 `ABONNEMENT_EXPIRE`** |
+| Écran de paiement du client | `web/src/pages/Paywall.tsx` + `web/src/composants/PaiementWave.tsx` |
+| File et bouton « Valider le paiement » | `admin/src/pages/Paiements.tsx`, `POST /api/admin/paiements/:id/valider` |
+| Comptes du propriétaire | `npm run comptes -- exempter --email=…` |
+
+**Le paiement est encaissé hors ligne.** Le client envoie 2 000 FCFA sur le
+numéro Wave **77 860 82 47**, déclare la référence de sa transaction, et un
+administrateur valide — ce qui ouvre trente jours. Il n'existe **pas** d'URL de
+paiement déductible d'un numéro Wave : un lien se génère depuis un compte Wave
+Business. Si vous en obtenez un, le poser dans `WAVE_LIEN_PAIEMENT` fait
+apparaître un vrai bouton « Payer avec Wave » ; sans lui, le client voit le
+numéro et la marche à suivre, jamais un bouton mort.
+
+Restent ouvertes à une entreprise bloquée, et **seulement** elles : `GET /api/moi`,
+`POST /api/deconnexion`, `/api/paiement/*`, `GET /api/referentiels`. Sans ces
+portes, un client bloqué ne pourrait pas payer — le blocage n'aurait pas d'issue.
+
+**Deux routes ont été supprimées, et c'est une correction de sécurité** :
+`POST /api/paiement/webhook` (aucune vérification de signature) et
+`POST /api/paiement/simuler-confirmation` (un client activait son propre
+abonnement). L'une et l'autre offraient un plan payant à qui les appelait. Un
+test garde leur disparition.
 
 ### Je n'arrive pas à me connecter
 

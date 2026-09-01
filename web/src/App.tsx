@@ -3,11 +3,12 @@ import { useSession } from "./lib/session";
 import { Accueil } from "./pages/Accueil";
 import { Connexion } from "./pages/Connexion";
 import { Inscription } from "./pages/Inscription";
+import { Paywall } from "./pages/Paywall";
 import { ShaderBackground } from "@/components/ui/oceanic-currents";
 import { HandwritingSvg } from "@/components/ui/handwriting-svg";
 
 export function App() {
-  const { etat, connecter, inscrire, deconnecter, appliquer } = useSession();
+  const { etat, connecter, inscrire, deconnecter, rafraichir, appliquer } = useSession();
   const [ecran, setEcran] = useState<"connexion" | "inscription">("connexion");
 
   if (etat.phase === "chargement") {
@@ -50,6 +51,21 @@ export function App() {
   }
 
   if (etat.phase === "connecte") {
+    // Essai terminé ou abonnement échu : l'application entière cède la place à
+    // l'écran de paiement. C'est le seul endroit d'où le client peut ressortir
+    // du blocage, il ne doit donc jamais être hors d'atteinte.
+    if (etat.session.entreprise.acces.bloque) {
+      return (
+        <Paywall
+          session={etat.session}
+          deconnecter={deconnecter}
+          rafraichir={async () => {
+            await rafraichir();
+          }}
+        />
+      );
+    }
+
     return (
       <Accueil session={etat.session} deconnecter={deconnecter} appliquer={appliquer} />
     );

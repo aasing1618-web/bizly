@@ -38,7 +38,12 @@ const depotCatalogue = creerDepotCatalogue(pool);
 const depotAuth = creerDepotPg(pool);
 const depotAdmin = creerDepotAdmin(pool);
 const depotPaiement = creerDepotPaiement(pool);
-const servicePaiement = creerServicePaiement(depotPaiement);
+const servicePaiement = creerServicePaiement({
+  depot: depotPaiement,
+  // Lien Wave Business, si le propriétaire en a un. Absent = le client voit le
+  // numéro et la marche à suivre, jamais un bouton qui ne mène nulle part.
+  lienWave: process.env["WAVE_LIEN_PAIEMENT"]?.trim() || null,
+});
 
 const app = creerApp({
   sonderBase: creerSondeBase(pool),
@@ -53,7 +58,6 @@ const app = creerApp({
   depotEntreprise: creerDepotEntreprise(pool),
   depotReferentiels: creerDepotReferentiels(pool),
   depotAdmin,
-  depotPaiement,
   // Limitation partagée en base. Sur un hébergeur sans état, plusieurs
   // instances répondent aux mêmes requêtes : un compteur en mémoire accorderait
   // le quota complet à chacune, et la défense contre la force brute
