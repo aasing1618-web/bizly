@@ -21,3 +21,7 @@ npm-debug.log*
 
 # Scripts jetables de vérification (créés puis supprimés à chaque vague)
 tmp-*
+
+# Impeccable skill local data
+.impeccable/
+
