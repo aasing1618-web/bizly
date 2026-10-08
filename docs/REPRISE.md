@@ -830,6 +830,10 @@ npm test
   - **Titre SVG Interactif (`SectionQuestions.tsx`)** : Dimensionnement adaptatif pour éviter tout rognage sur écran étroit.
 - **Validation Globale** : `npm run typecheck` à 0 erreur sur les 4 espaces de travail, 377/377 tests Vitest validés, bundles `npm run build` construits sans erreur.
 - **Publication GitHub / Déploiement Vercel** : Mises à jour validées et poussées sur `origin/main` (`https://github.com/aasing1618-web/bizly.git`). Vercel déploie automatiquement la version responsive en production.
+### Vérification et résolution du lien d'espace de travail (8 octobre 2026)
 
-
-
+- **Résolution des dépendances d'espace de travail (`@bizly/shared`)** : Réinstallation des liens npm workspaces (`npm install`) pour corriger l'absence de résolution du module `@bizly/shared` dans `server`, `web` et `admin`.
+- **Validation TypeScript & Tests** :
+  - `npm run typecheck` : **0 erreur** sur les 4 espaces de travail (`shared`, `server`, `web`, `admin`).
+  - `npm test` : **400 tests Vitest automatisés passés au vert (100% de succès)**.
+  - `npm run build` : Construction complète réussie.
